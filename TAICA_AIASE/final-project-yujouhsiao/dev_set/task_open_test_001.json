@@ -1,0 +1,5 @@
+{
+  "task_id": "task_open_test_001",
+  "code": "def calculate(n):\n    for i in range(n):\n        if i > 5:\n            return i",
+  "track": "open"
+}

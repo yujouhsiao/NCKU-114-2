@@ -1,0 +1,1683 @@
+DenseSR: Image Shadow Removal as Dense Prediction
+Yu-Fan Lin*
+National Cheng Kung University
+Tainan, Taiwan
+aas12as12as12tw@gmail.com
+Chia-Ming Lee∗
+National Cheng Kung University
+Tainan, Taiwan
+zuw408421476@gmail.com
+Chih-Chung Hsu†
+National Yang Ming Chiao Tung
+University
+Tainan, Taiwan
+chihchung@nycu.edu.tw
+Abstract
+Shadows are a common factor degrading image quality. Single-
+image shadow removal (SR), particularly under challenging indirect
+illumination, is hampered by non-uniform content degradation and
+inherent ambiguity. Consequently, traditional methods often fail to
+simultaneously recover intra-shadow details and maintain sharp
+boundaries, resulting in inconsistent restoration and blurring that
+negatively affect both downstream applications and the overall
+viewing experience. To overcome these limitations, we propose the
+DenseSR, approaching the problem from a dense prediction per-
+spective to emphasize restoration quality. This framework uniquely
+synergizes two key strategies: (1) deep scene understanding guided
+by geometric-semantic priors to resolve ambiguity and implicitly
+localize shadows, and (2) high-fidelity restoration via a novel Dense
+Fusion Block (DFB) in the decoder. The DFB employs adaptive com-
+ponent processing—using an Adaptive Content Smoothing Mod-
+ule (ACSM) for consistent appearance and a Texture-Boundary
+Recuperation Module (TBRM) for fine textures and sharp bound-
+aries—thereby directly tackling the inconsistent restoration and
+blurring issues. These purposefully processed components are effec-
+tively fused, yielding an optimized feature representation preserv-
+ing both consistency and fidelity. Extensive experimental results
+demonstrate the merits of our approach over existing methods. Our
+code can be available on https://github.com/VanLinLin/DenseSR.
+CCS Concepts
+• Computing methodologies →Computer vision tasks; Image
+representations; Appearance and texture representations.
+Keywords
+Single Image Shadow Removal, Multi-modality Learning, Dense
+Prediction
+ACM Reference Format:
+Yu-Fan Lin*, Chia-Ming Lee, and Chih-Chung Hsu. 2025. DenseSR: Image
+Shadow Removal as Dense Prediction. In In Proceedings of the 33rd ACM
+International Conference on Multimedia (MM’25), October 27-31, 2025, Dublin,
+∗Equal contribution.
+†Corresponding author.
+Permission to make digital or hard copies of all or part of this work for personal or
+classroom use is granted without fee provided that copies are not made or distributed
+for profit or commercial advantage and that copies bear this notice and the full citation
+on the first page. Copyrights for components of this work owned by others than the
+author(s) must be honored. Abstracting with credit is permitted. To copy otherwise, or
+republish, to post on servers or to redistribute to lists, requires prior specific permission
+and/or a fee. Request permissions from permissions@acm.org.
+MM’25, Dublin, Ireland
+© 2025 Copyright held by the owner/author(s). Publication rights licensed to ACM.
+ACM ISBN 978-1-4503-XXXX-X/2018/06
+https://doi.org/XXXXXXX.XXXXXXX
+(b) Input
+(a) GT
+(c) Ours
+(d) OmniSR
+Figure 1: To tackle inconsistent restoration and boundary
+blurring in shadow removal, we employs an adaptive strat-
+egy. As illustrated, it distinctly processes: (Left) smoothed
+base features ensuring content consistency (akin to mean,
+processed via ACSM smoothing); and (Right) high-frequency
+features for detail recovery and boundary sharpening (akin
+to variance, refined via TBRM). Fusing these purposefully
+processed features enables high-quality shadow removal that
+balances both content consistency and boundary clarity.
+Ireland. ACM, New York, NY, USA, 12 pages. https://doi.org/XXXXXXX.
+XXXXXXX
+
+Introduction
+Shadows, as natural consequences of light-object interactions, are
+ubiquitous optical phenomena in the visual world. The presence
+of shadows profoundly impacts multimedia content analysis, de-
+grading performance in tasks ranging from remote sensing [18],
+segmentation [29], tracking [45] and 3D reconstruction [2, 57] to
+multimedia applications [39]. Removing shadows from images to
+restore the authentic appearance of occluded regions is not only
+a fundamental computer vision task but also a critical step for en-
+hancing downstream application performance [7, 20, 38, 50]. The
+core challenge of this task lies in accurately understanding the local
+illumination attenuation patterns (distinguishing shadows from
+intrinsic object darkness) and leveraging contextual information
+to perform physically plausible and visually natural content filling
+and color correction within shadowed areas for restoration [24, 62].
+Despite significant advances driven by deep learning in single-
+image shadow removal, several deep-seated bottlenecks remain.
+First, the ambiguity between shadows and intrinsic object proper-
+ties remains challenging to resolve solely based on RGB information.
+Second, the complexity of real-world illumination, particularly the
+prevalence of indirect lighting and the resulting soft shadows in
+indoor scenes, is often inadequately addressed, limiting model per-
+formance in such scenarios, partly due to insufficient modeling of
+arXiv:2507.16472v1  [cs.CV]  22 Jul 2025
+
+MM’25, October 27–31, 2025, Dublin, Ireland
+Lin et al.
+physical light transport like scattering and diffusion. Third, stan-
+dard feature fusion strategies employed in hierarchical networks
+exhibit inherent flaws: they typically assume features accurately
+represent scene content at their respective scales. However, shad-
+ows non-uniformly degrade this representation, causing simple
+fusion methods to fail in handling this spatially varying signal
+degradation, resulting in inconsistent intra-shadow restoration and
+significant loss of boundary details.
+To overcome these bottlenecks, our approach returns to the
+physical essence of shadow formation and fundamental principles
+of information processing. As revealed by fundamental shading
+models, object appearance results from a complex interplay of illu-
+mination, geometry (surface orientation), and material (reflectance
+properties). Shadows fundamentally alter the illumination compo-
+nent. Accurately inverting this effect to obtain the shadow-free im-
+age necessitates effectively disentangling illumination effects from
+intrinsic properties, strongly motivating the incorporation of ex-
+ternal prior knowledge capturing geometry and material/semantic
+characteristics. Concurrently, recognizing the failure of standard
+fusion strategies when dealing with shadow-degraded features, we
+identified the need for a more sophisticated and adaptive fusion
+mechanism. Such a mechanism must be capable of distinguish-
+ing and processing different information components affected by
+shadows—for instance, the relatively stable low-frequency base ap-
+pearance versus the heavily distorted or obscured high-frequency
+texture details.
+Based on these motivations, we propose the DenseSR frame-
+work, approaching shadow removal from a dense pixel-wise pre-
+diction perspective. The core of DenseSR lies in a two-parts: first,
+it achieves deep scene understanding and implicit shadow local-
+ization/disambiguation by integrating powerful geometric (depth,
+normal) and semantic (DINO) priors guided through attention mech-
+anisms in Scene-Integrated Modules (SIM); building upon this un-
+derstanding, we introduce the innovative Dense Fusion Block (DFB)
+within the decoder, specifically responsible for high-fidelity content
+restoration. DFB employs an adaptive component processing ap-
+proach: the Adaptive Content Smoothing Module (ACSM) focuses
+on restoring a consistent base appearance within the shadow re-
+gion from coarser-scale features, suppressing noise and artifacts;
+meanwhile, the Texture-Boundary Recuperation Module (TBRM)
+concentrates on recuperating obscured fine textures and sharpen-
+ing boundaries using finer-scale features, as shown in Figures 1
+and 2. These complementary modules yield effectively combined
+outputs, generating an optimized feature representation that pre-
+serves both internal consistency and boundary details, ultimately
+enabling high-quality shadow removal. The main contributions of
+this study can be summarized into three points:
+• A novel shadow removal framework (DenseSR) integrating
+prior knowledge: Approaching the task from a dense pre-
+diction perspective, this framework utilizes attention mech-
+anisms to effectively guide geometric and semantic priors,
+addressing the core shadow ambiguity issue.
+• The design of a Dense Fusion Block (DFB) tailored for shadow
+degradation: Featuring complementary ACSM and TBRM
+modules, its adaptive component processing strategy specif-
+ically targets the intra-shadow inconsistency and bound-
+ary/detail loss issues characteristic of standard fusion meth-
+ods in shadow removal.
+• Demonstration of state-of-the-art performance under com-
+plex illumination: Extensive experiments validate DenseSR’s
+robustness and effectiveness, particularly in handling chal-
+lenging direct and indirect illumination scenarios.
+The following sections will detail related work, motivation, network
+architecture, experimental setup, and results analysis.
+
+Related Work
+2.1
+Single Image Shadow Removal
+Single-image shadow removal aims to restore the authentic ap-
+pearance beneath shadows, a fundamental computer vision task
+[7, 13, 38, 50]. Early traditional single-image shadow removal meth-
+ods typically operated in two stages: first detecting shadow re-
+gions, then performing removal. These techniques relied heavily
+on handcrafted features, physical or statistical models, and strong
+assumptions about illumination and surfaces [4, 44, 49, 64]. The
+removal stage employed physics-inspired strategies, such as im-
+age decomposition into illumination and reflectance components
+[25]. However, their reliance on specific priors and heuristic mod-
+els made them struggle with complex scenes, soft shadows, and
+varying conditions, thus limiting their generalization capability.
+Fortunately, deep learning significantly advanced the field: CNNs
+[41, 43] captured multi-scale features but faced locality limits; Trans-
+formers [12, 31, 58] offered better global context, yet ambiguity per-
+sisted without priors [59], and some relied on masks [12]; Diffusion
+models [14, 37] achieve high quality at significant computational
+cost. Early reliance on masks [17] simplified learning but proved im-
+practical, motivating mask-free approaches that must jointly locate
+and restore shadows [9]. While incorporating priors aids ambiguity
+resolution, existing methods often neglect complex light physics
+(e.g., scattering, diffusion shading), hindering adaptive restoration
+for diverse shadow types and origins (esp. indirect light) and causing
+boundary smoothing or internal artifacts. Furthermore, standard
+feature fusion in hierarchical networks degrades restoration qual-
+ity, losing boundary details and improperly mixing intra-object
+features, leading to inconsistency within recovered shadows.
+2.2
+Dense Prediction
+Dense prediction tasks form a core category of problems in com-
+puter vision, aiming to predict a corresponding value for every pixel
+in an input image. This encompasses a wide range of applications
+such as semantic segmentation [43, 47], instance segmentation [16],
+object detection [3], and image restoration/translation tasks like
+shadow removal. Foundational architectures FCN [47] and U-Net
+[43] established hierarchical designs to capture multi-scale informa-
+tion. Subsequently, architectures incorporating FPN [30] became
+widely adopted for many dense prediction tasks, explicitly provid-
+ing features at multiple resolutions.
+A critical component in these hierarchical and FPN-like struc-
+tures [28, 42, 55] is effective feature fusion. Since deep layers in
+these networks capture coarse, high-level semantic information
+while shallow layers retain fine-grained, high-resolution spatial
+
+DenseSR: Image Shadow Removal as Dense Prediction
+MM’25, October 27–31, 2025, Dublin, Ireland
+Shadow
+image
+Shadow
+Mask
+Shadow-free
+image
+Shadow
+Image
+External-
+priors
+Objects semantic
+(DINO), Depth, ... etc
+Encoder
+Shadow
+Image
+External-
+priors
+Shadow-free
+image
+Shadow-free
+image
+Encoder
+Decoder
+Decoder
+Decoder
+By shadow detection,
+decomposition, ... etc 
+For details refinement &
+semantic consistency
+Densefusion
+Encoder
+(a) Guided by Mask then restore
+(b) Guided by Scene-priors then restore
+(c) To address ambiguity arised from complex
+lightening condition and content (ours)
+Optional
+Optional
+Semantic coherence
+and consistency
+(ACSM)
+Details preserving
+and refinement
+(TBRM)
+Figure 2: Evolution of shadow removal approaches. (a) Mask-
+guided. (b) Prior-guided. (c) Our method (DenseSR) combines
+scene-priors guidance with the proposed Dense Fusion strat-
+egy. The Dense Fusion tackles the non-uniform feature degra-
+dation caused by shadows, aiming to better preserve details
+and ensure semantic coherence during restoration.
+details, fusion is essential to combine these complementary repre-
+sentations for generating high-quality, high-resolution predictions
+[11, 19]. However, effectively fusing features across significant gaps
+in resolution and semantic levels remains a key challenge. Simple
+fusion strategies, such as upsampling (e.g., via bilinear interpo-
+lation) followed by element-wise addition or concatenation, of-
+ten struggle to adequately integrate information from different
+scales. This frequently leads to the loss of crucial high-frequency
+details, potentially resulting in inconsistency within predicted re-
+gions (intra-category inconsistency), blurred object boundaries, or
+other artifacts. Consequently, advanced fusion techniques have
+been developed, employing strategies like adaptive kernels [34, 53],
+enhanced interactions [36], or feature alignment [22] to improve
+detail preservation and adaptability.
+While shadow removal is a dense prediction task plagued by
+issues like internal inconsistency and boundary blurring often ex-
+acerbated by simplistic feature fusion [9, 12, 59], many current
+approaches have not fully adopted or specifically adapted the more
+sophisticated fusion techniques required to effectively address the
+non-uniform feature degradation unique to shadows.
+
+Preliminary and Motivation
+3.1
+Shadow Physics, Image Model, and
+Challenges
+The formation of shadows originates from the fundamental physical
+principle of light propagation being occluded by 3D scene geometry.
+The final appearance of any point in an image is determined by the
+aggregation of all light rays arriving at that point, interacting with
+the surface material (described by the BRDF), and scattering towards
+the viewing direction. Incident illumination can be conceptually
+divided into direct illumination from primary sources and indirect
+illumination resulting from scene reflections/scattering. Occlusion
+of direct light creates well-defined shadows, whereas occlusion of
+indirect light—pervasive in indoor environments rich with complex
+light interactions like ambient light and interreflections—forms
+softer, graded shadows, the accurate modeling of which is crucial
+for realistic restoration.
+At the image level, shadows manifest as local attenuation in
+brightness and potential color shifts compared to the shadow-free
+state. While often simplified using a multiplicative model I𝑠(𝑥) ≈
+I𝑓(𝑥) ×A(𝑥) (where A(𝑥) is a spatially varying illumination factor),
+the true impact is more complex, involving non-linear effects and
+spatial/directional variations in illumination. Consequently, recov-
+ering the shadow-free image I𝑓from a single shadowed observation
+I𝑠is a highly challenging ill-posed inverse problem. Core challenges
+include: 1) Ambiguity: The visual similarity between shadows and
+intrinsically dark surfaces. 2) Complex Lighting Physics: Diffi-
+culty in accurately modeling indirect illumination and the resulting
+soft, graded shadows. 3) Non-uniform Feature Degradation:
+Shadows impact image content non-uniformly across space, com-
+plicating subsequent processing.
+3.2
+Evolution of Learning Strategies and
+Motivation for DenseSR
+With the development of learning strategies for shadow removal,
+methods have evolved to tackle these challenges. Early methods
+attempted to simplify the task using shadow masks M by shadow de-
+tection techniques and learning mapping functions F ′ : (I𝑠, M) ↦→
+ˆI𝑓, but the practical difficulty of obtaining masks limits applicabil-
+ity. Concretely, complex illumination and lighting conditions make
+shadow detection fail in various scenes. Thus, the mask-free setting
+F : I𝑠↦→ˆI𝑓became predominant, requiring the model to implicitly
+disentangle illumination attenuation from image content.
+On the other hand, recent advancements in large pre-trained
+foundation models offer new avenues. The rich general visual
+knowledge (encompassing geometry, semantics, materials) learned
+by these models can be transferred. In shadow removal, researchers
+explore leveraging geometric and semantic priors derived from
+such models (e.g., DINO [40], Depth Anything [61]), inspired by
+attempts like [27, 59]. These priors can provide crucial contextual
+cues to help mitigate the ambiguity between shadows and dark
+objects and implicitly infer regions likely requiring restoration,
+partially substituting the role of masks.
+Therefore, our core motivation stems from the observation that
+while powerful priors aid scene understanding and localization,
+the primary bottleneck becomes high-fidelity content restoration.
+The high-level idea is briefly illustrated in Figures 1 and 2. We
+thus regard the task as a dense prediction problem focused on
+restoration quality. However, because shadows cause non-uniform
+feature degradation, standard feature fusion mechanisms are inade-
+quate during restoration, failing to simultaneously ensure content
+consistency and detail clarity. This necessitates advanced network
+modules capable of adapting to shadow-specific degradation char-
+acteristics (like our proposed DFB), specifically designed to address
+challenges within the restoration phase itself and generate high-
+quality pixel-level outputs. This forms the starting point for the
+DenseSR framework design.
+
+Proposed Method
+To address the inherent challenges of single-image shadow removal,
+particularly the demand for high-fidelity restoration within the
+
+MM’25, October 27–31, 2025, Dublin, Ireland
+Lin et al.
+Conv3x3
+LeakyReLU
+Upsampling
+TransposeConv2x2
+Concatenation
+Downsampling
+Shadow Removal
+Transformer 
+SIM Block
+32x256x256
+Downsampling
+Upsampling
+TransposeConv2x2
+Multi-scale
+DINO feature
+Normal
+Vector
+Depth map
+64x128x128
+128x64x64
+128x128x128
+64x256x256
+64x256x256
+Concatenation
+Concatenation
+Concatenation
+Downsampling
+Upsampling
+TransposeConv2x2
+DenseFusion
+DenseFusion
+DenseFusion
+RGBD
+feature
+D1
+D2
+D3
+N1
+N2
+N3
+S1
+S2
+S3
+Conv3x3
+Grid Partition
+Grid Partition
+D3
+N3
+S3
+Conv3x3
+LeakyReLU
+Concatenation
+D3
+N3
+S3
+3x256x256
+Shadow Removal
+Transformer 
+(CAB Block)
+Shadow Removal
+Transformer 
+(SIM Block)
+Shadow Removal
+Transformer 
+(CAB Block)
+Shadow Removal
+Transformer 
+(CAB Block)
+Shadow Removal
+Transformer 
+(SIM Block)
+Freezed
+DepthAnything
+Freezed
+DINO
+Normal
+Estimation
+Input RGB image
+Scene priors from
+pretrained model
+Shadow-free
+ RGB Image
+Shadow Removal
+Transformer 
+(CAB Block)
+LayerNorm
+CAB
+LayerNorm
+MLP
+LayerNorm
+SIM
+LayerNorm
+MLP
+D3
+N3
+S3
+CAB
+Transformer
+Block with CAB
+3x256x256
+Spatial-scene
+understanding
+Feature aggregation
+and shadow removal
+Transformer Block
+with SIM & CAB
+Adaptive feature
+refinement
+Concatenation
+D3
+N3
+S3
+Figure 3: Overall architecture of the proposed DenseSR framework, embodying a layered ’understand then restore’ strategy.
+The encoder leverages multi-modal scene priors (Depth, Normal, DINO features extracted via pre-trained models), integrated
+through standard Swin-Transformer with SIM blocks for ambiguity resolution. The symmetric decoder path employs DFB
+after each upsampling and skip connection stage to perform adaptive, high-fidelity feature restoration before the final output
+projection reconstructs the shadow-free image. Note that 𝐷𝑖,𝑁𝑖,𝑆𝑖denote the corresponding feature with different scale to
+match the feature map resolutions at different stages, larger 𝑖values represent smaller sizes.
+(a) Origin
+(b) Depth
+(c) Normal
+(d) Feature
+Figure 4: Multi-modal scene priors and feature map within
+decoder, including the estimated depth map 𝑫, capturing
+camera-to-point distances, and the derived surface normal
+map 𝑵, indicating surface orientations. These geometric pri-
+ors, along with semantic features, guide our network towards
+more physically plausible shadow removal.
+dense prediction paradigm, we propose the DenseSR framework.
+Designed to learn a precise mapping 𝐹: I𝑠↦→ˆI𝑓from a shadowed
+input I𝑠to its corresponding shadow-free output ˆI𝑓, DenseSR fol-
+lows a layered strategy: (1) leveraging multi-modal priors for deep
+scene understanding and context awareness in the encoder; and (2)
+subsequently executing precise, restoration-oriented feature fusion
+and enhancement via innovative Dense Fusion Blocks (DFBs) in the
+decoder. The overall network architecture is based on U-Net [43]
+and integrates Swin Transformer [35, 56] attention mechanisms
+(see Figure 3).
+4.1
+Network Architecture Overview
+DenseSR adopts a symmetric encoder-decoder design. The input
+first passes through a 3×3 Convolution layer with LeakyReLU map-
+ping RGBD features to the initial embedding space. The encoder
+consists of three stages, each comprising consecutive Transformer
+Blocks and a 4×4 convolution with 2 strides per-move for downsam-
+pling, progressively reducing spatial resolution while increasing
+channel dimensionality. A bottleneck layer, also using a Trans-
+former Block, processes the deepest features. The decoder mirrors
+this structure with three corresponding stages, each including an
+2 × 2 transposed convolution for upsampling, concatenation with
+features from the corresponding encoder level via skip connection, a
+core module DFBs, illustrated in Sec. 4.2, and a Transformer Blocks.
+Finally, a 3 × 3 convolution layer maps the decoder output back to
+the RGB space, which is added to the original input I𝑠through a
+global residual connection to yield the final shadow-free image ˆI𝑓.
+4.1.1
+Spatial and Scene-prior Extraction and Preprocessing. Accu-
+rate shadow removal hinges on the network’s ability to understand
+the input scene I𝑠to distinguish illumination effects from intrin-
+sic surface properties. We achieve this by incorporating powerful
+geometric and semantic priors. Utilizing pre-trained models Depth-
+Anything-V2 [61] and DINO-V2 [40], we extract a depth map D
+(from which the normal map N is derived by normal estimation
+[15]) and multi-scale DINO feature maps F𝑚𝑢𝑙𝑡𝑖𝑠𝑐𝑎𝑙𝑒, rich in ma-
+terial and high-level semantic information [46]. The RGB image
+
+DenseSR: Image Shadow Removal as Dense Prediction
+MM’25, October 27–31, 2025, Dublin, Ireland
+is concatenated with the depth map D to form the primary RGBD
+input X𝑅𝐺𝐵𝐷. The extracted priors ({D, N, F}𝑚𝑢𝑙𝑡𝑖𝑠𝑐𝑎𝑙𝑒) are prepro-
+cessed (e.g., via grid partition and sampling) to match the feature
+map resolutions at different stages of the encoder and bottleneck.
+4.1.2
+Scene-prior-Modulated Attention Mechanism. The deep fu-
+sion of prior information primarily occurs within the Transformer
+Blocks of the encoder and bottleneck, particularly in the deeper
+layers configured as Scene-Integrated Modules (SIM) . The core of
+these modules is a specially designed window attention. This atten-
+tion mechanism goes beyond standard self-attention by introducing
+a prior-based modulation process:
+• Compute Similarity/Consistency Maps: Within each atten-
+tion window, using the spatially corresponding prior infor-
+mation, it dynamically computes pairwise semantic similar-
+ity maps (based on DINO feature F dot-product correlations)
+and geometric consistency maps (based on planar distance
+calculations using depth D and normals N).
+• Modulate Attention Scores: The computed semantic sim-
+ilarity and geometric consistency maps are then used to
+element-wise modulate the standard 𝑄𝐾𝑇attention score
+map before the Softmax operation.
+The significance of this mechanism lies in its ability to make the
+self-attention weights explicitly dependent on the geometric struc-
+ture and semantic content of the local scene context. This allows the
+network to aggregate information more intelligently, for instance,
+by prioritizing interactions between pixels belonging to the same
+object surface or geometrically coherent regions. Consequently, it
+significantly mitigates the ambiguity between shadows and dark
+surfaces, a core challenge in shadow removal.
+4.1.3
+Enhancement with Global Semantic Information. At the net-
+work’s deepest bottleneck layer, the use of global semantic informa-
+tion is further reinforced. Multi-scale DINO features are processed
+and integrated, concatenated with the deepest encoder output, and
+then jointly fed into the bottleneck’s SIM block. This ensures that
+high-level semantic context fully informs the most abstract feature
+processing stage.
+Through these prior integration and contextual encoding mecha-
+nisms, the DenseSR encoder generates multi-scale feature represen-
+tations that are rich in context, exhibit reduced shadow ambiguity,
+and possess enhanced discriminability, providing a high-quality
+input foundation for the subsequent restoration task. By leverag-
+ing priors within the SIMs for scene understanding and ambiguity
+reduction, the encoder prepares context-aware features. This foun-
+dation enables the decoder’s DFB to effectively concentrate on the
+demanding challenge of high-fidelity content restoration within
+the implicitly identified shadow regions. The design of the DFB will
+now be detailed.
+4.2
+Dense Fusion for Shadow Removal
+Having understood the scene and partially resolved ambiguities
+using priors, the core restoration task is performed in the decoder.
+Because shadows induce complex and non-uniform degradation on
+image content, simple feature fusion struggles to meet the pixel-
+level accuracy demands of the dense prediction task. To this end,
+we introduce the DFB at each upsampling stage of the decoder, as
+shown in Figure 3, with its detailed structure shown in Figure 5.
+The DFB is designed specifically to counteract shadow-induced fea-
+ture degradation and maximize content preservation and recovery
+during cross-scale information fusion. Concretely, DFB employs an
+adaptive component processing strategy, incorporating two func-
+tionally complementary core sub-modules:
+4.2.1
+Adaptive Content Smoothing Module (ACSM). Hierarchical
+network architectures often suffer from intra-feature inconsistency
+when upsampling deep, low-resolution feature maps (Y𝑙+1), par-
+ticularly within shadow regions where illumination is uneven or
+original textures are obscured. To promote a consistent and uniform
+appearance restoration, the ACSM is employed. Its primary objec-
+tive is to predict spatially-variant smoothing filters based on local
+contextual information (Z𝑙), typically derived from an initial fusion
+of corresponding features. Specifically, the module first passes Z𝑙
+through a convolutional layer to estimate raw filter weights ¯V𝑙for
+each spatial location (𝑖, 𝑗). Subsequently, a channel-wise Softmax
+function is applied across the ¯𝐾2 dimension (where ¯𝐾is the kernel
+size) to yield normalized, adaptive smoothing filter kernels ¯W𝑙:
+¯W𝑙
+𝑖,𝑗,𝑘= Softmax( ¯V𝑙
+𝑖,𝑗,:)𝑘=
+exp( ¯V𝑙
+𝑖,𝑗,𝑘)
+Í ¯𝐾2
+𝑘′=1 exp( ¯V𝑙
+𝑖,𝑗,𝑘′)
+,
+(1)
+where 𝑘indexes the filter weights. These predicted adaptive
+filters ¯W𝑙are designed to gently blur high-frequency variations,
+thereby enhancing content consistency. Following the efficient
+implementation strategy inspired by [34, 53], these filters can be
+applied concurrently with 2× upsampling using mechanisms like
+Pixel Shuffle [48]. In application, reshaped versions of ¯W𝑙(denoted
+¯W𝑙,𝑔for sub-pixel group 𝑔) are applied to neighborhoods Ω ¯𝐾in the
+original high-level feature map Y𝑙+1:
+˜Y𝑙+1,𝑔
+𝑖,𝑗
+=
+∑︁
+𝑝,𝑞∈Ω ¯𝐾
+¯𝑊𝑙,𝑔,𝑝,𝑞
+𝑖,𝑗
+· Y𝑙+1
+𝑖+𝑝,𝑗+𝑞.
+(2)
+Finally, the resulting feature groups { ˜Y𝑙+1,𝑔}4
+𝑔=1 are then rearranged
+via Pixel Shuffle to obtain the final upsampled and adaptively
+smoothed content feature ˜Y𝑙+1:
+˜Y𝑙+1 = PixelShuffle({ ˜Y𝑙+1,𝑔}4
+𝑔=1).
+(3)
+This process effectively smooths the content representation, en-
+hancing intra-shadow consistency crucial for high-quality shadow
+removal.
+4.2.2
+Texture-Boundary Recuperation Module (TBRM). To address
+the issue where downsampling operations inevitably discard high-
+frequency information, leading to the loss of fine textures and sharp
+boundaries in deeper feature maps, we designed the TBRM. This
+module aims to recover these crucial details by enhancing the high-
+frequency components inherent in the shallow, high-resolution
+feature map (X𝑙). To this end, the core mechanism of TBRM is to
+predict spatially-variant high-pass filter kernels ˆW𝑙(of size ˆ𝐾×
+ˆ𝐾), with the prediction based on local contextual features (𝑍′′)
+and utilizing a filter inversion technique [6]: initial weights ( ˆV𝑙)
+predicted by a convolutional layer are first transformed into low-
+pass weights via Softmax, then subtracted from an identity kernel
+
+MM’25, October 27–31, 2025, Dublin, Ireland
+Lin et al.
+RGBD feature
+Linear Proj.
+Query
+KeyT
+Value
+Depth map
+Normal map
+Point-wise
+Backprojection
+Planar distance
+estimation
+Geometric
+correlation map 
+DINO feature
+Self-semantic
+correlation map
+*
+*
+Softmax
+Scene-Integrated Module (SIM)
+Content-
+consistent Feature
+Low-resolution 
+Feature maps
+Conv1x1
+Texture-Boundary
+Recuperation 
+Module (TBRM)
+ Adaptive Content
+Smoothing
+Module
+(ACSM)
+Low-resolution 
+feature maps
+High-frequency
+Information
+CARAFE
+Low-frequency
+Information
+CARAFE
+一
++
++
++
+High-resolution 
+feature maps
+Conv1x1
+Dense Low-resolution 
+feature maps
+Edge-detailed feature
+Dense High-resolution 
+feature maps
+Upsampling
+Dense Fusion Block (DFB)
+*
++
+一
+Matrix Muliplication
+Element-wise Mulitplication
+Element-wise Addition
+Element-wise Subtraction
+Conv1x1
+Pixel-
+unshuffle
+K2x1x1
+K2x1x1
+K2x1x1
+Reshape&Softmax
+K2x1x1
+Semantic-consistent feature
+Low-pass 
+Filter
+ Adaptive Content Smoothing Module
+K x K
+Conv1x1
+K2x1x1
+Low-pass 
+Filter
+一
+High-pass 
+Filter
+Filter
+Inversion
+Reshape&Softmax
+Texture-Boundary Recuperation Module
+K x K
+Content-variance smoothing
+Edge-detailed refinement
+Figure 5: The SIM leverages geometric and semantic priors to make its self-attention context-aware, enhancing scene under-
+standing and reducing shadow ambiguity. Subsequently, the DFB performs adaptive feature fusion with content-filtering
+manner to handle shadow degradation. Its ACSM sub-module ensures content consistency using adaptive smoothing filters,
+while its TBRM sub-module recovers fine textures and sharp boundaries using adaptive detail-enhancing filters. By fusing
+these complementary processed outputs, the DFB generates a high-quality feature representation that balances consistency
+and fidelity, outperforming previous methods and standard fusion for effective shadow removal.
+E to yield the high-pass filters:
+ˆW𝑙
+𝑖,𝑗= E −Softmax( ˆV𝑙
+𝑖,𝑗,:).
+(4)
+Subsequently, these adaptive high-pass filters ˆW𝑙are applied to
+the high-resolution feature map X𝑙(or its processed version X′𝑙) to
+extract high-frequency information related to textures and edges:
+HF(X′𝑙)𝑖,𝑗=
+∑︁
+𝑝,𝑞∈Ω ˆ𝐾
+ˆ𝑊𝑙,𝑝,𝑞
+𝑖,𝑗
+· X′𝑙
+𝑖+𝑝,𝑗+𝑞.
+(5)
+Finally, this extracted high-frequency component HF(X′𝑙), which
+represents the details needed for recuperation, is added back to X′𝑙
+via a residual connection. This step yields a detail-enhanced feature
+map ˜X𝑙with recuperated textures and sharpened boundaries:
+˜X𝑙= X′𝑙+ HF(X′𝑙).
+(6)
+In the context of shadow removal, TBRM is vital for restoring the
+fine textural details often obscured by shadows and for sharpening
+the transitions at shadow boundaries, contributing significantly to
+the fidelity and visual quality of the final shadow-free image.
+4.2.3
+Component Integration within DFB. As illustrated in Figure
+5, DFB structurally integrates the outputs from its complementary
+modules. Before the final fusion, to ensure the quality of cross-scale
+information integration, both the detail-enhanced high-resolution
+path (from TBRM) and the consistency-focused low-resolution path
+(from ACSM) are processed through CARAFE [53] modules. As an
+advanced content-aware feature reassembly technique, CARAFE
+optimizes the feature maps by dynamically generating upsampling
+or recombination kernels based on content, thereby ensuring en-
+hanced spatial precision and detail preservation during this critical
+stage. After adaptive processing by ACSM/TBRM and high-quality
+reassembly by CARAFE, these two feature streams (smooth base vs.
+structural details) are then effectively fused, typically via element-
+wise addition. This structured approach, where different feature
+components (smooth base vs. structural details) are adaptively pro-
+cessed based on shadow degradation characteristics before recom-
+bination, allows DFB to generate a superior fused representation
+compared to standard methods. This optimized feature map is then
+passed to the subsequent Transformer Block in the decoder for final
+contextual refinement.
+Training Objective. The model is trained using the Charbon-
+nier loss [63] to supervise the consistency between the estimated
+shadow-free image ˆI𝑓and the ground-truth shadow-free image I𝑓:
+LCharbonnier =
+√︃
+||I𝑓−ˆI𝑓||2 + 𝜖2,
+(7)
+where 𝜖is a small constant (e.g., 10−3) for numerical stability.
+
+Experiments Results
+5.1
+Implementation Details
+We conducted our experiments on ISTD [54], ISTD+ [24], SRD [41],
+WSRD+ [51]), and the INS [59] dataset. We evaluated images with
+a resolution of 256 × 256 by random cropping, following previous
+methods [10, 12, 26, 59]. We report results using the commonly
+used metrics, including Peak Signal-to-Noise Ratio (PSNR) and the
+Structure Similarity Index Measure (SSIM). For the WSRD+ [51]
+dataset, since it does not provide testing data, we used its evaluation
+data and the evaluation code provided by the NTIRE 2024 Image
+Shadow Removal Challenge [52] for comparison. Our model is
+trained on a GPU server with four GeForce RTX 4090 GPUs using
+PyTorch 2.0.1 with CUDA 11.7. The batch size and training epoch
+are set to 3 and 1400, with DDP and AMP training for computational
+efficiency. We employ the AdamW optimizer [23] with standard
+beta parameters (𝛽1 = 0.9, 𝛽2 = 0.999) and an epsilon value of
+1 × 10−8 for optimization. The initial learning rate is set to 2 × 10−4
+and adjusted using a cosine annealing scheduler, configured with a
+cycle length of 10 epochs and a minimum learning rate of 5 × 10−5.
+Standard data-augmentation strategies, such as random flipping
+and rotation, are used during training stage.
+5.2
+Performance Comparisons
+We compare our method with several state-of-the-art single-image
+shadow removal methods, including the DSC [21], DHAN [5],
+
+DenseSR: Image Shadow Removal as Dense Prediction
+MM’25, October 27–31, 2025, Dublin, Ireland
+Method
+Venue
+Run-time (ms)
+ISTD Dataset
+ISTD+ Dataset
+SRD Dataset
+WSRD+ Dataset
+PSNR↑
+SSIM↑
+PSNR↑
+SSIM↑
+PSNR↑
+SSIM↑
+PSNR↑
+SSIM↑
+DSC [21]
+TPAMI 2019
+—
+29.00
+0.944
+25.66
+0.956
+29.05
+0.940
+—
+—
+DHAN [5]
+AAAI 2020
+—
+29.11
+0.954
+25.66
+0.956
+30.74
+0.958
+22.39
+0.796
+Fu et al. [10]
+CVPR 2021
+—
+26.30
+0.835
+28.40
+0.846
+28.52
+0.932
+21.66
+0.752
+BMNet [65]
+CVPR 2022
+—
+28.53
+0.952
+32.22
+0.965
+28.34
+0.943
+24.75
+0.816
+TBRNet [33]
+TNNLS 2023
+—
+28.77
+0.928
+31.91
+0.964
+31.83
+0.953
+—
+—
+ShadowFormer [12]
+AAAI 2023
+43.7
+29.90
+0.960
+31.39
+0.946
+30.58
+0.958
+25.44
+0.820
+DMTN [32]
+TMM 2023
+82.6
+29.05
+0.956
+31.72
+0.963
+32.45
+0.964
+—
+—
+ShadowDiffusion [14]
+CVPR 2023
+506.9
+30.09
+0.918
+31.08
+0.950
+31.91
+0.968
+—
+—
+ShadowRefiner [8]
+CVPRW 2024
+—
+—
+—
+—
+—
+—
+—
+26.04
+0.827
+OmniSR [59]
+AAAI 2025
+120.1
+30.45
+0.964
+33.34
+0.970
+32.87
+0.969
+26.07
+0.835
+StableShadowDiffusion [60]
+CVPR 2025
+452.8
+—
+—
+35.19
+0.970
+33.63
+0.968
+26.26
+0.827
+DenseSR (Ours)
+—
+124.6
+30.64
+0.976
+33.98
+0.974
+33.45
+0.970
+26.28
+0.838
+Fu et al. [10] + GM
+CVPR 2021
+—
+27.19
+0.945
+29.45
+0.861
+29.24
+0.938
+—
+—
+Zhu et al. [66] + GM
+AAAI 2022
+—
+29.85
+0.960
+—
+—
+32.05
+0.965
+—
+—
+BMNet [65] + GM
+CVPR 2022
+—
+30.28
+0.959
+33.98
+0.972
+31.97
+0.965
+—
+—
+ShadowFormer [12] + GM
+AAAI 2023
+45.1
+32.21
+0.968
+35.46
+0.971
+32.90
+0.958
+—
+—
+DMTN [32] + GM
+TMM 2023
+84.1
+30.42
+0.965
+33.68
+0.971
+33.77
+0.968
+—
+—
+ShadowDiffusion [14] + GM
+CVPR 2023
+523.1
+32.33
+0.969
+35.72
+0.969
+34.73
+0.970
+—
+—
+OmniSR [59] + GM
+AAAI 2025
+122.3
+31.56
+0.965
+34.20
+0.973
+34.56
+0.977
+—
+—
+DenseSR (Ours) + GM
+—
+126.2
+32.14
+0.970
+34.64
+0.974
+34.67
+0.978
+—
+—
+Table 1: Quantitative comparisons on ISTD, ISTD+, SRD, and WSRD+ datasets. Best results are highlighted as 1st , 2nd and
+3rd . +GM: using ground-truth shadow masks.
+.
+Input
+Ours
+ShadowRefiner
+GT
+Residual
+StableShadowDiffusion
+Figure 6: Results visualization with SOTA shadow removal methods, illustrating reconstruction quality of our method on
+WSRD+ dataset [52]. Comparisons with StableShadowDiffusion [60] and shadowRefiner [8]. The residual images are computed
+by the consistent binary thresholding setting, demonstrating the our method’s superiority in details and boundary refinement
+and addressing ambiguity.
+Fu et al. [10], Zhu et al. [66], BMNet [65], ShadowFormer [12],
+DMTN [32], ShadowDiffusion [14] ShadowRefiner [8], OmniSR [59],
+and StableShadowDiffusion [60], as shown in Tables 1 and 2. The
+qualitative results are presented in Figure 6 and 7. All compar-
+isons use the results reported in the original papers or the original
+authors’ implementations and hyperparameters. Furthermore, we
+present a comparison of inference time with the size of a 640 ×
+480 image. Due to the involvement of the pretrained network
+(e.g. Depth-Anything-V2 [61] and the DINO-V2 network [40]), our
+method has higher computational complexity compared to light-
+weight methods like ShadowFormer [12]. However, our method is
+faster than diffusion-based methods such as ShadowDiffusion [14]
+and StableShadowDiffusion [60].
+As shown in Table 1, our method achieves competitive PSNR
+and SSIM scores on ISTD, ISTD+, SRD, and INS datasets without
+GT shadow masks. Even when compared with other methods us-
+ing GT shadow masks (these methods present their results using
+GT shadow masks provided by the dataset as the standard input
+for evaluation, which are not available in real-world applications),
+our approach, which does not rely on such masks, obtains the
+second-best results on the ISTD dataset, surpassed only by “Shad-
+owDiffusion [14] + GM” and “ShadowFormer [12] + GM”. When
+
+MM’25, October 27–31, 2025, Dublin, Ireland
+Lin et al.
+INS Dataset
+Method
+INS testing
+Real testing
+PSNR↑/SSIM↑
+PSNR↑/SSIM↑
+DHAN [5]
+27.84/0.963
+35.05/0.993
+Fu et al. [10]
+27.91/0.957
+36.64/0.994
+BMNet [65]
+27.90/0.958
+36.65/0.994
+ShadowFormer [12]
+28.62/0.963
+36.99/0.994
+DMTN [32]
+28.83/0.969
+35.83/0.993
+ShadowDiffusion [14]
+29.12/0.966
+36.91/0.994
+OmniSR [59]
+30.38/0.973
+38.34/0.995
+Ours
+30.64/0.981
+38.62/0.996
+Table 2: Quantitative comparisons on the INS dataset and real
+captured images [59]. Best results are highlighted as 1st ,
+2nd and 3rd .
+Input
+Ours
+ShadowRefiner
+GT
+OmniSR
+StableShadowDiffusion
+Figure 7: Real-world testing data comparisons. For the real
+captured testing data, our method excels in removing com-
+plex indirect shadows and boundary sharpness. (zoom in for
+better views)
+used with GT masks as network’s input, our method also demon-
+strates a significant improvement in PSNR performance on the ISTD,
+ISTD+, and SRD datasets. Notably, despite its desired performance,
+StableShadowDiffusion [60] needs multiple-stage refinement, sig-
+nificantly costing more computational resources and complexity.
+As demonstrated in Figure 6, our method also outperforms other
+methods evaluated on the WSRD+ [52] dataset, including Shad-
+owRefiner [8] and StableShadowRefiner [60]. The relatively low
+PSNR scores for all methods on the WSRD+ dataset [59] can be
+attributed to exposure differences between the input and ground-
+truth images. Concretely, the peer methods still struggle to elim-
+inate shadows in these areas completely in indoor scenes. This
+limitation may be attributed to these methods lacking explicit adap-
+tive content-aware smoothing and detail-preserving during feature
+propagation and fusion. We provide additional results in the sup-
+plementary material.
+Evidence of the DFB’s benefit is presented in Figure 8’s opti-
+mization curves, which illustrate that the DFB’s specific mecha-
+nism—using ACSM for content consistency and TBRM for detail
+recovery before adaptive fusion—enables the model to learn more
+effectively, achieving significantly lower training loss and higher
+validation PSNR compared to the model lacking this adaptive fusion
+capability. This highlights how the DFB’s design, which balances
+Iterations
+Charbonnier Loss (Log)
+PSNR
+Iterations
+Figure 8: Optimization curve between with/without the pro-
+posed DFB, evaluated on WSRD+ [51] dataset.
+Dataset
+INS Testing
+Real captured
+WSRD+
+Configuration
+PSNR↑/SSIM↑
+PSNR↑/SSIM↑
+PSNR↑/SSIM↑
+Full
+30.64/0.981
+38.64/0.996
+26.28/0.838
+W/o depth
+29.95/0.973
+38.03/0.995
+25.73/0.828
+W/o normal
+29.32/0.967
+37.75/0.995
+25.80/0.829
+W/o DINO
+29.31/0.966
+37.06/0.994
+23.31/0.797
+W/o DFB
+30.38/0.973
+38.34/0.995
+26.07/0.835
+W/o ACSM
+30.52/0.974
+38.48/0.995
+26.11/0.836
+W/o TBRM
+30.49/0.972
+38.43/0.994
+26.12/0.836
+Table 3: Ablation studies for all modules. W/o depth: only
+RGB input. W/o DINO: without DINO feature. W/o DFB: with-
+out adaptive feature fusion.
+content smoothing with detail refinement, directly translates to
+better optimization and improved shadow removal performance.
+5.3
+Ablation Study
+To validate our model designs, we conducted ablation studies on
+the proposed semantic and geometric attention weights, depth
+concatenation, and DINO feature concatenation. The “INS testing”
+and “real captured” are trained on the INS training dataset. The
+“WSRD+” is trained and evaluated using the WSRD+ dataset [52].
+To validate the effectiveness of key designs in the DenseSR model,
+we conducted ablation studies summarized in Table 3. The analysis
+reveals that removing depth (W/o depth) or normal maps (W/o
+normal) degrades performance, confirming the value of geometric
+cues, while removing DINO semantic features (W/o DINO) causes
+a significant performance drop, highlighting the critical role of
+high-level semantic priors in shadow identification and ambiguity
+reduction. Concurrently, replacing the DFB with standard fusion
+(W/o DFB) also leads to lower performance, demonstrating the
+superiority of our adaptive dense fusion strategy. Furthermore,
+ablating ACSM (W/o ACSM) or TBRM (W/o TBRM) individually
+within the DFB results in slight performance decreases, validating
+the respective contributions of the content smoothing module to
+consistency and the texture-boundary recuperation module to detail
+fidelity. In summary, the ablation results conclusively demonstrate
+that DenseSR’s superior performance stems from the synergistic
+interplay between multi-modal prior integration (especially DINO
+and depth) and the adaptive component processing (ACSM and
+TBRM) within the DFB.
+
+Conclusion
+To address inconsistent content restoration and boundary blurring
+in single-image shadow removal—caused by ambiguity, complex
+lighting, and non-uniform feature degradation, in this paper, we
+introduced the DenseSR framework. From the dense prediction
+
+DenseSR: Image Shadow Removal as Dense Prediction
+MM’25, October 27–31, 2025, Dublin, Ireland
+perspective, DenseSR leverages prior-guided attention for spatial-
+scene understanding and ambiguity reduction, and employs the
+innovative DFB with adaptive feature fusion with content-filtering
+manner to overcome standard fusion limitations for high-fidelity
+content restoration. The ACSM ensures smooth content consistency
+within restored shadows, while the TBRM crucially recuperates fine
+textures and sharpens boundaries. Experiments validate DenseSR’s
+SOTA performance on multiple benchmarks and its effectiveness
+in handling complex shadows.
+Acknowledgements. We thank to National Center for High
+performance Computing (NCHC) of National Applied Research
+Laboratories (NARLabs) in Taiwan for providing computational
+and storage resources.
+References
+[1] R. B. Blackman and J. W. Tukey. 1958. The measurement of power spectra from
+the point of view of communications engineering — Part I. The Bell System
+Technical Journal 37, 1 (1958), 185–282. doi:10.1002/j.1538-7305.1958.tb03874.x
+[2] Luis Bolanos, Shih-Yang Su, and Helge Rhodin. 2024. Gaussian Shadow Casting for
+Neural Characters. In The Conference on Computer Vision and Pattern Recognition.
+[3] Nicolas Carion, Francisco Massa, Gabriel Synnaeve, Nicolas Usunier, Alexan-
+der Kirillov, and Sergey Zagoruyko. 2020. End-to-end object detection with
+transformers. In European conference on computer vision. Springer, 213–229.
+[4] Rita Cucchiara, Costantino Grana, Massimo Piccardi, and Andrea Prati. 2003.
+Detecting moving objects, ghosts, and shadows in video streams. IEEE transactions
+on pattern analysis and machine intelligence 25, 10 (2003), 1337–1342.
+[5] Xiaodong Cun, Chi-Man Pun, and Cheng Shi. 2020. Towards Ghost-Free Shadow
+Removal via Dual Hierarchical Aggregation Network and Shadow Matting GAN.
+10680–10687.
+[6] T. Daboczi and T.B. Bako. 2000. Inverse filtering of optical images. In Proceedings
+of the 17th IEEE Instrumentation and Measurement Technology Conference [Cat.
+No. 00CH37066], Vol. 1. 370–374 vol.1. doi:10.1109/IMTC.2000.846888
+[7] Rakesh Kumar Das, Madhu Shandilya, Shubham Sharma, and Dhanshree Kulkarni.
+2017. A survey on shadow detection and removal in images. In 2017 International
+Conference on Recent Innovations in Signal processing and Embedded Systems
+(RISE). 175–180. doi:10.1109/RISE.2017.8378149
+[8] Wei Dong, Han Zhou, Yuqiong Tian, Jingke Sun, Xiaohong Liu, Guangtao Zhai,
+and Jun Chen. [n. d.]. ShadowRefiner: Towards Mask-free Shadow Removal via
+Fast Fourier Transformer. arXiv preprint arXiv:2406.02559 ([n. d.]).
+[9] Wei Dong, Han Zhou, Yuqiong Tian, Jingke Sun, Xiaohong Liu, Guangtao Zhai,
+and Jun Chen. 2024. ShadowRefiner: Towards Mask-free Shadow Removal via Fast
+Fourier Transformer. arXiv:2406.02559 [cs.CV] https://arxiv.org/abs/2406.02559
+[10] Lan Fu, Changqing Zhou, Qing Guo, Felix Juefei-Xu, Hongkai Yu, Wei Feng,
+Yang Liu, and Song Wang. 2021. Auto-exposure fusion for single-image shadow
+removal. In Proceedings of the IEEE/CVF conference on computer vision and pattern
+recognition. 10571–10580.
+[11] A Ardeshir Goshtasby. 2005. Fusion of multi-exposure images. Image and Vision
+Computing 23, 6 (2005), 611–618.
+[12] Lanqing Guo, Siyu Huang, Ding Liu, Hao Cheng, and Bihan Wen. 2023. Shad-
+owformer: global context helps shadow removal. In Proceedings of the AAAI
+conference on artificial intelligence, Vol. 37. 710–718.
+[13] Laniqng Guo, Chong Wang, Yufei Wang, Siyu Huang, Wenhan Yang, Alex C Kot,
+and Bihan Wen. 2024. Single-Image Shadow Removal Using Deep Learning: A
+Comprehensive Survey. arXiv preprint arXiv:2407.08865 (2024).
+[14] Lanqing Guo, Chong Wang, Wenhan Yang, Siyu Huang, Yufei Wang, Hanspeter
+Pfister, and Bihan Wen. 2023. Shadowdiffusion: When degradation prior meets
+diffusion model for shadow removal. In Proceedings of the IEEE/CVF Conference
+on Computer Vision and Pattern Recognition. 14049–14058.
+[15] Bae Gwangbin, Budvytis Ignas, and Cipolla Roberto. 2021. Estimating and Ex-
+ploiting the Aleatoric Uncertainty in Surface Normal Estimation. In International
+Conference on Computer Vision (ICCV).
+[16] Kaiming He, Georgia Gkioxari, Piotr Dollár, and Ross Girshick. 2017. Mask R-
+CNN. In 2017 IEEE International Conference on Computer Vision (ICCV). 2980–2988.
+doi:10.1109/ICCV.2017.322
+[17] Shengfeng He, Bing Peng, Junyu Dong, and Yong Du. 2021. Mask-ShadowNet:
+Toward Shadow Removal via Masked Adaptive Instance Normalization. IEEE
+Signal Processing Letters 28 (2021), 957–961. doi:10.1109/LSP.2021.3074082
+[18] Chih-Chung Hsu, Chih-Yu Jian, Eng-Shen Tu, Chia-Ming Lee, and Guan-Lin Chen.
+2024. Real-Time Compressed Sensing for Joint Hyperspectral Image Transmission
+and Restoration for CubeSat. IEEE Transactions on Geoscience and Remote Sensing
+62 (2024), 1–16. doi:10.1109/TGRS.2024.3378828
+[19] Chih-Chung Hsu, Chia-Ming Lee, and Yi-Shiuan Chou. 2024. DRCT: Saving
+Image Super-Resolution Away from Information Bottleneck. In Proceedings of
+the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)
+Workshops. 6133–6142.
+[20] Chih-Chung Hsu, Chia-Ming Lee, Yu-Fan Lin, Yi-Shiuan Chou, Chih-Yu Jian,
+and Chi-Han Tsai. 2024. Revisiting Vision-Language Features Adaptation and
+Inconsistency for Social Media Popularity Prediction. In Proceedings of the 32nd
+ACM International Conference on Multimedia (Melbourne VIC, Australia) (MM
+’24). Association for Computing Machinery, New York, NY, USA, 11464–11469.
+doi:10.1145/3664647.3689000
+[21] Xiaowei Hu, Chi-Wing Fu, Lei Zhu, Jing Qin, and Pheng-Ann Heng. 2019.
+Direction-aware spatial context features for shadow detection and removal. IEEE
+transactions on pattern analysis and machine intelligence 42, 11 (2019), 2795–2808.
+[22] Zilong Huang, Yunchao Wei, Xinggang Wang, Wenyu Liu, Thomas S. Huang, and
+Humphrey Shi. 2022. AlignSeg: Feature-Aligned Segmentation Networks. IEEE
+Transactions on Pattern Analysis and Machine Intelligence 44, 1 (2022), 550–557.
+doi:10.1109/TPAMI.2021.3062772
+[23] Diederik P. Kingma and Jimmy Ba. 2015. Adam: A Method for Stochastic Opti-
+mization. In ICLR.
+[24] Hieu Le and Dimitris Samaras. 2019. Shadow removal via shadow image decom-
+position. In Proceedings of the IEEE/CVF International Conference on Computer
+Vision. 8578–8587.
+[25] Hieu Le and Dimitris Samaras. 2019. Shadow Removal via Shadow Image Decom-
+position. In Proceedings of the IEEE/CVF International Conference on Computer
+Vision (ICCV).
+[26] Hieu Le and Dimitris Samaras. 2020. From Shadow Segmentation to Shadow
+Removal.
+[27] Chia-Ming Lee, Ching-Heng Cheng, Yu-Fan Lin, Yi-Ching Cheng, Wo-Ting Liao,
+Fu-En Yang, Yu-Chiang Frank Wang, and Chih-Chung Hsu. 2025. PromptHSI:
+Universal Hyperspectral Image Restoration with Vision-Language Modulated
+Frequency Adaptation. arXiv:2411.15922 [eess.IV] https://arxiv.org/abs/2411.
+
+[28] Youngwan Lee, Jonghee Kim, Jeffrey Willette, and Sung Ju Hwang. 2022. MPViT:
+Multi-Path Vision Transformer for Dense Prediction. In 2022 IEEE/CVF Conference
+on Computer Vision and Pattern Recognition (CVPR). 7277–7286. doi:10.1109/
+CVPR52688.2022.00714
+[29] Chenghua Li, Bo Yang, Zhiqi Wu, Gao Chen, Yihan Yu, and Shengxiao Zhou.
+2024. Shadow Removal based on Diffusion, Segmentation and Super-resolution
+Models. In 2024 IEEE/CVF Conference on Computer Vision and Pattern Recognition
+Workshops (CVPRW). 6045–6054. doi:10.1109/CVPRW63382.2024.00611
+[30] Tsung-Yi Lin, Piotr Dollár, Ross Girshick, Kaiming He, Bharath Hariharan, and
+Serge Belongie. 2017. Feature Pyramid Networks for Object Detection. In 2017
+IEEE Conference on Computer Vision and Pattern Recognition (CVPR). 936–944.
+doi:10.1109/CVPR.2017.106
+[31] Hengxing Liu, Mingjia Li, and Xiaojie Guo. 2024. Regional Attention for Shadow
+Removal. arXiv:2411.14201 [cs.CV] https://arxiv.org/abs/2411.14201
+[32] Jiawei Liu, Qiang Wang, Huijie Fan, Wentao Li, Liangqiong Qu, and Yandong Tang.
+2023. A Decoupled Multi-Task Network for Shadow Removal. IEEE Transactions
+on Multimedia (2023).
+[33] Jiawei Liu, Qiang Wang, Huijie Fan, Jiandong Tian, and Yandong Tang. 2023. A
+Shadow Imaging Bilinear Model and Three-Branch Residual Network for Shadow
+Removal. IEEE Transactions on Neural Networks and Learning Systems (2023),
+1–15. doi:10.1109/TNNLS.2023.3290078
+[34] Wenze Liu, Hao Lu, Hongtao Fu, and Zhiguo Cao. 2023. Learning to Upsample
+by Learning to Sample. In 2023 IEEE/CVF International Conference on Computer
+Vision (ICCV). 6004–6014. doi:10.1109/ICCV51070.2023.00554
+[35] Ze Liu, Yutong Lin, Yue Cao, Han Hu, Yixuan Wei, Zheng Zhang, Stephen Lin,
+and Baining Guo. 2021. Swin transformer: Hierarchical vision transformer us-
+ing shifted windows. In Proceedings of the IEEE/CVF international conference on
+computer vision. 10012–10022.
+[36] Hao Lu, Wenze Liu, Zixuan Ye, Hongtao Fu, Yuliang Liu, and Zhiguo Cao. 2022.
+SAPA: Similarity-Aware Point Affiliation for Feature Upsampling. In Proc. Annual
+Conference on Neural Information Processing Systems (NeurIPS).
+[37] Kangfu Mei, Luis Figueroa, Zhe Lin, Zhihong Ding, Scott Cohen, and Vishal M
+Patel. 2024. Latent Feature-Guided Diffusion Models for Shadow Removal. In
+Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision.
+4313–4322.
+[38] Saritha Murali, VK Govindan, and Saidalavi Kalady. 2016. A survey on shadow
+removal techniques for single image. International Journal of Image, Graphics
+and Signal Processing 8, 12 (2016), 38.
+[39] Kunpeng Niu, Yanli Liu, Enhua Wu, and Guanyu Xing. 2023. A Boundary-Aware
+Network for Shadow Removal. IEEE Transactions on Multimedia 25 (2023), 6782–
+6793. doi:10.1109/TMM.2022.3214422
+[40] Maxime Oquab, Timothée Darcet, Théo Moutakanni, Huy Vo, Marc Szafraniec,
+Vasil Khalidov, Pierre Fernandez, Daniel Haziza, Francisco Massa, Alaaeldin
+El-Nouby, Mahmoud Assran, Nicolas Ballas, Wojciech Galuba, Russell Howes,
+Po-Yao Huang, Shang-Wen Li, Ishan Misra, Michael Rabbat, Vasu Sharma, Gabriel
+Synnaeve, Hu Xu, Hervé Jegou, Julien Mairal, Patrick Labatut, Armand Joulin,
+
+MM’25, October 27–31, 2025, Dublin, Ireland
+Lin et al.
+and Piotr Bojanowski. 2024. DINOv2: Learning Robust Visual Features without
+Supervision. arXiv:2304.07193 [cs.CV] https://arxiv.org/abs/2304.07193
+[41] Liangqiong Qu, Jiandong Tian, Shengfeng He, Yandong Tang, and Rynson WH
+Lau. 2017. Deshadownet: A multi-context embedding deep network for shadow
+removal. 4067–4075.
+[42] René Ranftl, Alexey Bochkovskiy, and Vladlen Koltun. 2021. Vision Transformers
+for Dense Prediction. In 2021 IEEE/CVF International Conference on Computer
+Vision (ICCV). 12159–12168. doi:10.1109/ICCV48922.2021.01196
+[43] Olaf Ronneberger, Philipp Fischer, and Thomas Brox. 2015. U-net: Convolutional
+networks for biomedical image segmentation. In International Conference on
+Medical image computing and computer-assisted intervention. Springer, 234–241.
+[44] Neda Salamati, Arthur Germain, and S Siisstrunk. 2011. Removing shadows from
+images using color and near-infrared. In 2011 18th IEEE International Conference
+on Image Processing. IEEE, 1713–1716.
+[45] Andres Sanin, Conrad Sanderson, and Brian C. Lovell. 2010. Improved Shadow
+Removal for Robust Person Tracking in Surveillance Scenarios. In 2010 20th
+International Conference on Pattern Recognition. 141–144. doi:10.1109/ICPR.2010.
+
+[46] Prafull Sharma, Julien Philip, Michaël Gharbi, Bill Freeman, Fredo Durand, and
+Valentin Deschaintre. 2023. Materialistic: Selecting Similar Materials in Images.
+ACM Trans. Graph. 42, 4, Article 154 (jul 2023), 14 pages. doi:10.1145/3592390
+[47] Evan Shelhamer, Jonathan Long, and Trevor Darrell. 2017. Fully Convolutional
+Networks for Semantic Segmentation. IEEE Transactions on Pattern Analysis and
+Machine Intelligence 39, 4 (2017), 640–651. doi:10.1109/TPAMI.2016.2572683
+[48] Wenzhe Shi, Jose Caballero, Ferenc Huszár, Johannes Totz, Andrew P. Aitken,
+Rob Bishop, Daniel Rueckert, and Zehan Wang. 2016. Real-Time Single Image
+and Video Super-Resolution Using an Efficient Sub-Pixel Convolutional Neural
+Network. In 2016 IEEE Conference on Computer Vision and Pattern Recognition
+(CVPR). 1874–1883. doi:10.1109/CVPR.2016.207
+[49] Yael Shor and Dani Lischinski. 2008. The shadow meets the mask: Pyramid-based
+shadow removal. In Computer Graphics Forum, Vol. 27. Wiley Online Library,
+577–586.
+[50] Arti Tiwari, Pradeep Kumar Singh, and Sobia Amin. 2016. A survey on shadow
+detection and removal in images and video sequences. In 2016 6th International
+Conference-Cloud System and Big Data Engineering (Confluence). IEEE, 518–523.
+[51] Florin-Alexandru Vasluianu, Tim Seizinger, and Radu Timofte. 2023. WSRD: A
+Novel Benchmark for High Resolution Image Shadow Removal. In 2023 IEEE/CVF
+Conference on Computer Vision and Pattern Recognition Workshops (CVPRW).
+1826–1835. doi:10.1109/CVPRW59228.2023.00181
+[52] Florin-Alexandru Vasluianu, Tim Seizinger, Zhuyun Zhou, Zongwei Wu, Cailian
+Chen, and Radu Timofte. 2024. NTIRE 2024 Image Shadow Removal Challenge
+Report. In 2024 IEEE/CVF Conference on Computer Vision and Pattern Recognition
+Workshops (CVPRW). 6547–6570. doi:10.1109/CVPRW63382.2024.00654
+[53] Jiaqi Wang, Kai Chen, Rui Xu, Ziwei Liu, Chen Change Loy, and Dahua Lin. 2019.
+CARAFE: Content-Aware ReAssembly of FEatures. In The IEEE International
+Conference on Computer Vision (ICCV).
+[54] Jifeng Wang, Xiang Li, and Jian Yang. 2018. Stacked conditional generative
+adversarial networks for jointly learning shadow detection and shadow removal.
+1788–1797.
+[55] Wenhai Wang, Enze Xie, Xiang Li, Deng-Ping Fan, Kaitao Song, Ding Liang, Tong
+Lu, Ping Luo, and Ling Shao. 2021. Pyramid vision transformer: A versatile back-
+bone for dense prediction without convolutions. In Proceedings of the IEEE/CVF
+International Conference on Computer Vision. 568–578.
+[56] Zhendong Wang, Xiaodong Cun, Jianmin Bao, Wengang Zhou, Jianzhuang Liu,
+and Houqiang Li. 2022. Uformer: A general u-shaped transformer for image
+restoration. In Proceedings of the IEEE/CVF Conference on Computer Vision and
+Pattern Recognition. 17683–17693.
+[57] Silvan Weder, Guillermo Garcia-Hernando, Áron Monszpart, Marc Pollefeys,
+Gabriel J. Brostow, Michael Firman, and Sara Vicente. 2023. Removing Objects
+From Neural Radiance Fields. In Proceedings of the IEEE/CVF Conference on Com-
+puter Vision and Pattern Recognition (CVPR). 16528–16538.
+[58] Jie Xiao, Xueyang Fu, Yurui Zhu, Dong Li, Jie Huang, Kai Zhu, and Zheng-Jun Zha.
+2024. HomoFormer: Homogenized Transformer for Image Shadow Removal. In
+Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition
+(CVPR). 25617–25626.
+[59] Jiamin Xu, Zelong Li, Yuxin Zheng, Chenyu Huang, Renshu Gu, Weiwei Xu, and
+Gang Xu. 2025. OmniSR: Shadow Removal under Direct and Indirect Lighting.
+arXiv:2410.01719 [cs.CV] https://arxiv.org/abs/2410.01719
+[60] Jiamin Xu, Yuxin Zheng, Zelong Li, Chi Wang, Renshu Gu, Weiwei Xu, and
+Gang Xu. 2024. Detail-Preserving Latent Diffusion for Stable Shadow Removal.
+arXiv:2412.17630 [cs.CV] https://arxiv.org/abs/2412.17630
+[61] Lihe Yang, Bingyi Kang, Zilong Huang, Zhen Zhao, Xiaogang Xu, Jiashi Feng,
+and Hengshuang Zhao. 2024. Depth Anything V2. arXiv:2406.09414 [cs.CV]
+https://arxiv.org/abs/2406.09414
+[62] Qingxiong Yang, Kar-Han Tan, and Narendra Ahuja. 2012. Shadow removal using
+bilateral filtering. IEEE Transactions on Image processing 21, 10 (2012), 4361–4368.
+[63] Syed Waqas Zamir, Aditya Arora, Salman Khan, Munawar Hayat, Fahad Shahbaz
+Khan, Ming-Hsuan Yang, and Ling Shao. 2020. Learning enriched features for
+real image restoration and enhancement. In IEEE/CVF European Conference on
+Computer Vision (ECCV).
+[64] Ling Zhang, Qing Zhang, and Chunxia Xiao. 2015. Shadow remover: Image
+shadow removal based on illumination recovering optimization. IEEE Transactions
+on Image Processing 24, 11 (2015), 4623–4636.
+[65] Yurui Zhu, Jie Huang, Xueyang Fu, Feng Zhao, Qibin Sun, and Zheng-Jun Zha.
+2022. Bijective Mapping Network for Shadow Removal. In Proceedings of the
+IEEE/CVF Conference on Computer Vision and Pattern Recognition. 5627–5636.
+[66] Yurui Zhu, Zeyu Xiao, Yanchi Fang, Xueyang Fu, Zhiwei Xiong, and Zheng-Jun
+Zha. 2022. Efficient model-driven network for shadow removal. In Proceedings of
+the AAAI conference on artificial intelligence, Vol. 36. 3635–3643.
+
+DenseSR: Image Shadow Removal as Dense Prediction
+MM’25, October 27–31, 2025, Dublin, Ireland
+Supplementary Material
+DenseSR: Image Shadow Removal as Dense Prediction
+In the supplementary material, we present the following:
+• Network Hyperparameter Settings
+• Data Loading and Preprocessing
+• More Visual Comparisons
+
+Network Hyperparameter Settings
+7.1
+DenseSR
+A key architectural modification involves the strategic integration
+of three specialized Dense Fusion Blocks (DFB1, DFB2, and DFB3) at
+the decoder’s fusion points, replacing conventional feature fusion
+operations to facilitate enhanced cross-level feature integration,
+as detailed in Section 7.2. The network parameters are initialized
+with a normal distribution N (0, 0.2). We configure DenseSR with a
+base embedding dimension of 32. The architecture comprises seven
+primary processing stages (three encoder stages, one bottleneck,
+and three decoder stages), each consistently utilizing a depth of
+2, signifying that they are composed of two stacked transformer
+blocks, CAB and SIM.The number of attention heads within these
+respective blocks varies across the stages, following the sequence
+1, 2, 4, 16, 8, 4, and 2, corresponding to the three encoder stages,
+the bottleneck, and the three decoder stages. The window size
+of 16 is employed for all window attention with window shifting
+stride 16//2. Furthermore, the MLP expansion ratio within each
+Transformer block is set to 4.
+7.2
+Dense Fusion Block
+The DFB module composed primarily of the Texture-Boundary Re-
+cuperation Module (TBRM) and the Adaptive Content Smoothing
+Module (ACSM), accepts two primary inputs: a high-resolution
+feature map (hr_feat) and a low-resolution feature map (lr_feat).
+Both input feature maps initially undergo channel compression via
+dedicated 1 × 1 convolutions. These convolutional layers reduce
+the channel dimensions of both hr_feat and lr_feat to an interme-
+diate dimension of 64, as specified by the compressed channels
+hyperparameter, to subsequent adaptive kernel prediction against
+computational efficiency.
+Following this compression, the DFB predicts spatially-variant
+kernels based on the derived context. Specifically, we set the low-
+pass kernel to 5 × 5 in ACSM. The corresponding kernel generator
+predicts raw weights, outputting a feature map where the channel
+dimension is proportional to the squared kernel size. Within the
+crucial kernel normalizer step, these raw weights are first reshaped
+to isolate the kernel dimension 𝐾× 𝐾. A channel-wise softmax is
+then applied across this 𝐾× 𝐾dimension, transforming the raw
+predictions into normalized weights that sum to one. After optional
+Hamming windowing and re-normalization, the output is reshaped
+again to yield the final, stable 5 × 5 spatially-variant low-pass filter
+kernels (mask_lr) ready for application via CARAFE [53] module.
+This larger kernel size facilitates effective feature smoothing and
+captures the broader spatial context necessary for ensuring content
+consistency.
+Concurrently, for TBRM, a smaller kernel of 3 × 3 is utilized.
+Its generator similarly predicts initial raw weights, with channels
+proportional to the squared kernel size. These weights undergo
+the identical kernel normalizer process involving reshaping and
+channel-wise softmax across the 𝐾′ × 𝐾′ dimension, optionally
+modulated by a Hamming window [1]. This step critically produces
+normalized, stable intermediate kernels (mask_hr), which are con-
+ceptually akin to low-pass filters before the final transformation.
+The effective 3 × 3 high-pass filter required by TBRM is then de-
+rived implicitly through filter inversion (conceptually, subtracting
+mask_hr from an identity kernel). This compact 3 × 3 kernel is bet-
+ter suited for precisely identifying and enhancing highly localized
+textural details and sharp edges inherent in the high-frequency
+components targeted by TBRM.
+7.3
+Data Loading and Preprocessing
+The proposed DenseSR needs the four inputs: (1) RGB image, (2)
+Depth map, (3) Normal map, and (4) Semantic feature map. First,
+Depth-Anything-V2 [61] and DINO-V2 [40] are utilized to extract
+external features. Note that using pre-trained models like these is
+commonly used in the field recently. Afterwards, the normal map
+can be obtained by normal estimation using the depth map with
+camera intrinsics. Concretely, this conversion utilizes the camera’s
+field of view (FOV, specified as 60 degrees in the implementation)
+and the image dimensions 𝐻and 𝑊to first calculate the camera’s
+focal length 𝑓and principal point 𝑐𝑥,𝑐𝑦using:
+𝑓=
+𝑊
+2 tan(FOVradians/2) ;
+𝑐𝑥= 𝑊−1
+
+;
+𝑐𝑦= 𝐻−1
+
+(8)
+where FOVradians = FOVdegrees × 𝜋
+180. Then, for each pixel coordi-
+nate 𝑥,𝑦with its corresponding depth value 𝑧= depth[𝑦,𝑥], the
+3D coordinates (𝑥3𝑑,𝑦3𝑑,𝑧) are computed using the pinhole camera
+model equations:
+𝑥3d = (𝑥−𝑐𝑥) × 𝑧
+𝑓
+;
+𝑦3d = (𝑦−𝑐𝑦) × 𝑧
+𝑓
+(9)
+These calculated 3D points (𝑥3𝑑,𝑦3𝑑,𝑧) for all pixels are stacked
+together to form the final normal map, represented as an array of
+shape (𝐻,𝑊, 3).
+Concurrently, the loaded surface normal map, initially assumed
+to be in the [0, 1] range often derived from rendering or estimation,
+undergoes processing to ensure it represents properly normalized
+3D vectors suitable for geometric calculations. First, the normal
+map values nraw are linearly rescaled to the [-1, 1] range:
+nrescaled = nraw × 2.0 −1.0
+(10)
+Then, each per-pixel normal vector nrescaled is explicitly normal-
+ized by calculating the L2 norm of each vector and dividing the
+vector components by this magnitude:
+nnormalized =
+nrescaled
+∥nrescaled∥2 + 𝜖
+(11)
+where 𝜖is set to 10−20. The resulting processed normal map con-
+tains unit-length vectors representing surface orientations. During
+training time, we randomly cropped the input image from source
+data with the size of 256×256. In order to fit the resolution of differ-
+ent stages in the base model, we then partition these external data
+into grid samples. So far, four distinct data modalities are acquired.
+
+MM’25, October 27–31, 2025, Dublin, Ireland
+Lin et al.
+(b) Input
+(a) GT
+(c) Ours
+(d) OmniSR
+Figure J: Additional visualizations comparing the mean and
+variance of feature maps.
+GT
+Input
+Ours
+StableShadowDiffusion
+OmniSR
+ShadowRefiner
+Figure K: More visual comparison of shadow removal results.
+DFB
+Dec. Layer 1
+Upsample
+Dec. Layer 2
+Dec. Layer 3
+Figure I: Frequency domain analysis comparing DFB (top
+row) and standard decoder (bottom row) outputs at cor-
+responding stages. Note the significantly stronger high-
+frequency components (brighter periphery) in the DFB spec-
+tra, indicating enhanced detail and boundary representation.
+
+Analysis and Comparisons
+8.1
+Frequency Domain analysis
+To compare the standard decoder mechanism and the proposed
+(DFB), we analyze their respective outputs in the frequency domain.
+Figure I visualizes the Fast Fourier Transform (FFT) magnitude
+spectra derived from feature maps at corresponding decoder layers
+for both approaches. The top row displays the spectra for DFB’s
+high-resolution outputs, while the bottom row shows those from
+the baseline standard decoder at equivalent stages.
+In these spectra, the center (low frequencies) reflects slowly
+varying components like overall structure, while the periphery
+(high frequencies) represents rapid changes such as edges, textures,
+and details, with energy levels indicating component prevalence.
+This comparison clearly reveals the DFB’s strength in details re-
+finement. The DFB outputs (top row) exhibit markedly stronger
+high-frequency components, directly correlating with its objective
+of enhancing detail and sharpening boundaries. This enhanced
+high-frequency energy translates to the sharper edges, clearer tex-
+tures, and better-preserved details observed spatially in DenseSR’s
+results. Conversely, the standard decoder (bottom row), lacking ex-
+plicit high-frequency recuperation, shows weaker high-frequency
+energy, consistent with potentially smoother, less detailed outputs.
+8.2
+More Visual Comparisons
+Figure J presents additional visual comparisons focusing on the
+mean and variability of features on the WSRD+ [51] dataset, while
+Figure K showcases further examples of our shadow removal results
+on the INS [59] dataset.

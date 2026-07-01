@@ -1,0 +1,1716 @@
+arXiv:2506.15524v1  [cs.CV]  18 Jun 2025
+NTIRE 2025 Image Shadow Removal Challenge Report
+Florin-Alexandru Vasluianu†
+Tim Seizinger†
+Zhuyun Zhou†
+Cailian Chen†
+Zongwei Wu†
+Radu Timofte†
+Mingjia Li
+Jin Hu
+Hainuo Wang
+Hengxing Liu
+Jiarui Wang
+Qiming Hu
+Xiaojie Guo
+Xin Lu
+Jiarong Yang
+Yuanfei Bao
+Anya Hu
+Zihao Fan
+Kunyu Wang
+Jie Xiao
+Xi Wang
+Xueyang Fu
+Zheng-Jun Zha
+Yu-Fan Lin
+Chia-Ming Lee
+Chih-Chung Hsu
+Xingbo Wang
+Dong Li
+Yuxu Chen
+Bin Chen
+Yuanbo Zhou
+Yuanbin Chen
+Hongwei Wang
+Jiannan Lin
+Qinquan Gao
+Tong Tong
+Zhao Zhang
+Yanyan Wei
+Wei Dong
+Han Zhou
+Seyed Amirreza Mousavi
+Jun Chen
+Haobo Liang
+Jiajie Jing
+Junyu Li
+Yan Yang
+Seoyeon Lee
+Chaewon Kim
+Ziyu Feng
+Shidi Chen
+Bowen Luan
+Zewen Chen
+Vijayalaxmi Ashok Aralikatti
+G Gyaneshwar Rao
+Nikhil Akalwadi
+Chaitra Desai
+Ramesh Ashok Tabib
+Uma Mudenagudi
+Anas M. Ali
+Bilel Benjdira
+Wadii Boulila
+Alexandru Brateanu
+Cosmin Ancuti
+Tanmay Chaturvedi
+Manish Kumar
+Anmol Srivastav
+Daksh Trivedi
+Shashwat Thakur
+Kishor Upla
+Zeyu Xiao
+Zhuoyuan Li
+Boda Zhou
+Shashank Shekhar
+Kele Xu
+Qisheng Xu
+Zijian Gao
+Tianjiao Wan
+Suiyi Zhao
+Bo Wang
+Yan Luo
+Mingshen Wang
+Yilin Zhang
+Abstract
+This work examines the findings of the NTIRE 2025
+Shadow Removal Challenge. A total of 306 participants
+have registered, with 17 teams successfully submitting their
+solutions during the final evaluation phase. Following the
+last two editions, this challenge had two evaluation tracks:
+one focusing on reconstruction fidelity and the other on vi-
+sual perception through a user study.
+Both tracks were
+evaluated with images from the WSRD+ dataset, simulating
+interactions between self- and cast-shadows with a large
+number of diverse objects, textures, and materials.
+1. Introduction
+Shadow removal can be considered as a particular sub-
+task towards the broader field of Image Restoration, having
+gained significant research interest due to the complexity of
+the shadow formation process. The intensity and shape of
+shadows are influenced by a large number of factors, such
+as the light source, the geometry of the occluding object,
+† Florin-Alexandru Vasluianu, Tim Seizinger, Zhuyun Zhou, Cailian
+Chen, Zongwei Wu, and Radu Timofte are the NTIRE 2025 challenge or-
+ganizers. The other authors participated in the challenge.
+Appendix A (in the supplementary) provides names and affiliations.
+https://cvlai.net/ntire/2025
+and the properties of the recipient surface. The intricacy
+of this system demands comprehensive investigation, with
+Shadow Removal and detection persisting as an area of ac-
+tive research.
+Early works rely on the physical properties of a de-
+termined shadow formation model, which is usually char-
+acterized by a restricted set of conditions. One category
+of Shadow Removal solutions using classical image pro-
+cessing aims to restore shadow-free images by transfer-
+ring local statistics from non-shadowed to shadowed ar-
+eas [19, 20]. While promising, such methods require high-
+quality shadow detection as a pre-processing task to define
+shadow areas, which constitutes an equally difficult prob-
+lem. However, solutions built on localization information
+regarding the shadow affected areas remain a popular de-
+sign choice [57,67,71].
+Powered by increasingly faster hardware, later solu-
+tions employed deep learning paradigms to exploit large-
+scale image databases for shadow removal and/or detec-
+tion [23,30,52,62,68]. These solutions are adopting fully-
+supervised [24,37,38,52,62,68,79], weakly-supervised or
+self-supervised [15,30,33,61] training frameworks.
+Recently, diffusion models [28] have been increasingly
+adopted by various image shadow removal solutions [25,
+34].
+These approaches are characterized by the highest
+perceptual quality in the currently established benchmarks,
+
+such as ISTD [68], ISTD+ [38,68], or SRD [52].
+All aforementioned solutions advanced shadow removal,
+but the shadow formation model studied by them is limited
+to specific and simplified scenarios. LRSS [23] offers soft
+shadow images, while SRD [52] and ISTD [68] are limited
+to scenarios with hard shadows. Their acquisition setups are
+defined with natural sun light as the only light source, with
+an occluding object that itself is not visible in the scene,
+occluding parts thereof in the input image. The reference
+image is then obtained by simply moving the light occluder
+away from the scene so that no shadow is cast onto it. Due
+to the duration of this procedure and variability of natural
+light due to, e.g. moving clouds, these pairs can show sig-
+nificant variance in color balance. Although a color correc-
+tion method was introduced in [38], defining the improved
+variations of ISTD+ and SRD+, various semantic inconsis-
+tencies still exist in these datasets [33,61].
+The main limitation of the setup used to acquire the
+aforementioned datasets [23, 52, 68] is that the areas af-
+fected by the shadows are always flat with little geomet-
+ric complexity. Naturally, this is because more complex
+scene geometries would result in self-shadowing being in-
+cluded in the reference frame. However, self-shadows rep-
+resent the most prevalent form of natural shadows; thus,
+their study is imperative for practical applications beyond
+scenario-specific prototypes.
+To alleviate these limitations, the authors of WSRD [62]
+adopt a professional photography studio setup, using artifi-
+cial light sources for both input and reference acquisition.
+While a directional point light source is used to simulate
+natural sunlight that affects the scene, a omnidirectional
+softbox-based light setup was used to acquire reference im-
+ages.
+This setup enables near-optimal lighting distribu-
+tion, even when rough surfaces or complex scene geome-
+try are present. Therefore, WSRD can represent complex
+self-shadowing phenomena, narrowing the gap between the
+dataset and the in-the-wild domains.
+Recently, the WSRD setup was extended [64], with mul-
+tiple directional lights of varying sizes, positions, and dis-
+tance. This more complex setup thereby is modeling vary-
+ing intensities in the umbra-shadow region and varying
+transitions within the penumbra between shadow and non-
+shadow affected areas.
+This advancement broadens the
+scope of the shadow-removal task by introducing an im-
+age database specifically to address the connected Ambient
+Lighting Normalization problem.
+This challenge is one of the NTIRE 2025 1 Work-
+shop associated challenges on: ambient lighting normaliza-
+tion [66], reflection removal in the wild [73], shadow re-
+moval, event-based image deblurring [58], image denois-
+ing [59], XGC quality assessment [45], UGC video en-
+hancement [56], night photography rendering [18], image
+1https://www.cvlai.net/ntire/2025/
+super-resolution (x4) [8], real-world face restoration [9], ef-
+ficient super-resolution [54], HR depth estimation [75], ef-
+ficient burst HDR and restoration [40], cross-domain few-
+shot object detection [22], short-form UGC video quality
+assessment and enhancement [42,43], text to image genera-
+tion model quality assessment [26], day and night raindrop
+removal for dual-focused images [41], video quality assess-
+ment for video conferencing [32], low light image enhance-
+ment [47], light field super-resolution [69], restore any im-
+age model (RAIM) in the wild [44], raw restoration and
+super-resolution [10], and raw reconstruction from RGB on
+smartphones [11].
+2. Challenge Data
+The WSRD dataset [62], used in the NTIRE 2023 Im-
+age Shadow Removal Challenge [63], marked a significant
+advancement in studying complex shadow interactions by
+incorporating more intricate surfaces and diverse content.
+However, its main drawback stemmed from the fact that the
+data capturing setup is partly mobile. Therefore, inconsis-
+tencies in the alignment of pixels have proved to consume
+significant efforts on the participants side, with complex
+strategies that alleviate these issues dominating the compe-
+tition.
+To address this, we implemented a double-stage image
+alignment strategy, in which the preliminary image align-
+ment implements a keypoint matching system for homog-
+raphy estimation. Differences in illumination for severely
+underexposed image segments prove to contribute to a chal-
+lenging environment for a small subset of outlier image
+pairs. Therefore, we introduced a refined image alignment
+as a gradient descent affinity estimation based on object
+contour geometry as a second alignment step, further en-
+hancing the quality of the data provided for the NTIRE 2025
+Image Shadow Removal Challenge.
+This set of adjustments resulted in a notable increase in
+PSNR of approximately 2 dB for the baseline data, open-
+ing the path for enhanced quality results. Thus, the received
+submissions presented higher-quality restored images, with
+improvements evident in both reconstruction fidelity and
+perceived image quality. This enhanced alignment allowed
+participating teams to concentrate more on refining their
+shadow removal algorithms.
+Furthermore, due to the constraints of the Codalab server
+used for validation [50], the size of both the validation
+and testing split was limited to a set of 75 novel image
+pairs, with contents partly disjoint from those represented
+in the training split.
+The selection process ensured that
+the most challenging samples were retained without altering
+the overall distribution of represented scenarios, content, or,
+crucially, previously unseen training objects or surfaces 2.
+2https://github.com/fvasluianu97/WSRD-DNSR
+
+3. Evaluation
+This challenge was a double-track competition with dis-
+tinct ranking criteria for each track. The following are the
+evaluation criteria.
+1. The reconstruction fidelity in terms of PSNR;
+2. The Structured Similarity Index (SSIM) [70] score;
+3. The LPIPS [78] distance between the restorations and
+the ground-truth images. We used the ImageNet pre-
+trained AlexNet [35] for LPIPS feature extraction;
+4. The Mean Opinion Score (MOS) for the submitted pre-
+dictions;
+5. An efficiency metric based on the number of parame-
+ters reported by each team.
+Fidelity Track: The Fidelity Track ranks images using the
+well established quantitative metrics of PSNR, SSIM, and
+LPIPS with equal weight attributed to each. For solutions
+of similar fidelity, lower complexity approaches are favored
+through a parameter efficiency metric.
+Perceptual Track: In the Perceptual Track, the principal
+metric used was the mean opinion score (MOS), derived
+from a user study conducted after all submissions have been
+received.
+4. Challenge Phases
+1. Development phase: In this phase, participants were
+given access to the task description, along with a set of
+1000 pairs of images to train their models.
+2. Validation phase: To validate their solutions, partici-
+pants received a set of 75 input images input images
+from the WSRD+ validation split, with the ground
+truths remaining private. To enable measurement of
+validation performance, a Codalab server [50] was set
+up, comparing submission images uploaded by each
+user with private reference images.
+3. Final phase: A subset of 75 input images from the
+testing split of WSRD+ was sent to the challenge par-
+ticipants, with validation performed using the Codalab
+server. Test-set fine-tuning was restricted by limiting
+user submissions. Finally, a submission template was
+provided, with instructions for the final submission
+preparation. Each team providing a method descrip-
+tion, the corresponding codes, information regarding
+the team members, affiliations, and the final set of 75
+restored images, corresponding to the testing split in-
+puts.
+5. User Study
+For the perceptual track, the primary ranking criteria of
+the challenge was the Mean Opinion Score (MOS). The
+score was based on a user study where imaging experts, in-
+cluding professional photographers, analyzed the images.
+The utilized grading system ranges from 1 (worst) to 10
+(best) and is defined such that the input image corresponds
+to a grade of 3. Grades 1 and 2 are kept for situations in
+which the algorithm degrades the input image without visi-
+ble improvement in the shadow-affected areas. Meanwhile,
+successfully restored images obtained a rating ranging from
+3 to 10, with increments of 0.5.
+The user study was carried out on a subset of challenging
+samples from the challenge test split, with the index i in the
+subset i ∈{3, 4, 15, 17, 27, 39, 41, 55, 70, 73} given the 0-
+based indexing in the test sample split. The analyzed images
+were chosen given the complexity of the shadow scenario,
+with contents both seen and unseen during training.
+6. Challenge Results
+The challenge ended with 17 valid submissions. Section
+7 provides details about each of the solutions ranked in the
+final phase.
+Table 1 provides the quantitative evaluation of the sub-
+mitted results for both fidelity and perceptual tracks. Partic-
+ular rankings along each metric evaluated are provided as
+subscripts. The solutions achieve a significant performance
+level, in terms of reconstruction fidelity and quantified per-
+ceptual quality, with the provided evaluations being backed
+by the results provided for visual comparison (see Figure 1).
+7. Challenge Methods
+7.1. X-Shadow
+The solution of team X-Shadow leverages intrinsic hints
+such as albedo, irradiance, normal, and depth information
+that has been extracted from the input image using auxiliary
+methods. These are produced by rgb2x [77] and DepthAny-
+thingV2 [53] methods.
+As observed in Figure 2, their solution consists of two
+stages. Firstly, a down-sampling stage processes the input
+image in a low-resolution space, with a high-level semantic
+pre-trained attention-based u-shape network, which is im-
+plemented through a Hierarchical Transformer Block from
+SegmentAnythingV2 [53].
+Then, an up-sampling stage focuses on detail recon-
+struction using a lightweight attention-based u-shape net-
+work, implemented via LRNet, in a fashion similar to Shad-
+owHack [29]. Note that for both stages, the previously gen-
+erated partial results are used as additional inputs.
+
+Team
+PSNR
+↑
+SSIM
+↑
+LPIPS
+↓
+MOS
+↑
+Params.
+(M)
+Runtime
+(s)
+Device
+Extra Data
+Fidelity
+Rank
+Perceptual
+Rank
+X-Shadow
+25.34
+0.839
+0.078
+8.75
+
+A100/RTX4090
+[64]
+
+LUMOS
+25.38
+0.838
+0.095
+8.20
+
+1.2
+A100
+[62]
+
+ACVLab
+25.90
+0.842
+0.124
+8.10
+
+1.63
+RTX3090
+No
+
+FusionShadowRemoval
+24.81
+0.825
+0.090
+8.00
+
+0.76
+RTX3090
+[65]
+
+GLHF
+25.31
+0.834
+0.096
+7.98
+
+1.54
+L20
+[63,65]
+
+LVGroup HFUT
+25.02
+0.833
+0.109
+7.90
+
+3.46
+RTX4090
+No
+
+MIDAS
+24.44
+0.819
+0.130
+7.85
+
+1.56
+RTX3090
+No
+
+Alchemist
+23.96
+0.817
+0.088
+7.78
+
+0.3
+RTX4060ti
+No
+
+PSU Team
+24.15
+0.811
+0.133
+7.73
+
+A100
+No
+
+Oath
+24.64
+0.829
+0.106
+7.68
+17.5
+0.63
+RTX3090
+No
+
+KLETech-CEVI
+23.46
+0.815
+0.127
+7.60
+
+0.7
+RTX6000
+No
+
+ReLIT
+23.44
+0.822
+0.113
+7.50
+
+1.24
+RTX4090
+No
+
+MRT-ShadowR
+22.15
+0.780
+0.118
+6.80
+2.39
+0.8
+RTX3090
+No
+
+CV SVNIT
+23.87
+0.772
+0.216
+6.60
+4.7
+0.4
+RTX5000
+No
+
+X-L
+21.45
+0.781
+0.149
+6.03
+
+0.5
+A100
+No
+
+ZhouBoda
+14.86
+0.555
+0.407
+2.30
+
+0.22
+vGPU-32GB
+[39,62,68]
+
+GroupNo9
+17.04
+0.550
+0.660
+0.80
+-
+0.09
+T4 *2
+No
+
+Table 1. Quantitative evaluations for the submissions of the NTIRE 2025 Image Shadow Removal Challenge on the Final Phase test split.
+Inputs
+FuShaRem
+ACVLab
+LUMOS
+X-Shadow
+Reference
+Figure 1. Equivalent samples from the NTIRE 2025 Image Shadow Removal Challenge test split, for Team X-Shadow, the winner of both
+tracks vs. the solutions ranked second, third and fourth.
+
+Figure 2. The overall architecture proposed by X-Shadow. In-
+trinsic hints are generated with auxiliary methods [53, 77] before
+being used as additional inputs for both the initial down-scaling
+stage and the final up-scaling stage.
+SCA
+1×1, conv
+3×3, dconv
+SimpleGate
+LayerNorm
+1×1, conv
+LayerNorm
+1×1, conv
+SimpleGate
+1×1, conv
+NAFNet Without Global Residual
+Vision Transformer
+Batch Input
+Output Merge
+Stage 1: Dynamic Even Shadow With Vision Transformer
+Stage 2: Refine Large-scale Image
+Final Output
+Initial Even Image
+Algorithm 1
+(training)
+Algorithm 2
+(testing)
+Algorithm 1
+(training)
+n ×
+Even Block
+Reverse Even
+Linear Projection of Flattened Patches 
+Transformer Encoder
+Transformer Decoder
+Multi-Head 
+Attention
+LayerNorm
+Restoration Vision Transformer
+Transformer Encoder
+Transformer Decoder
+&
+Embedded 
+Patches
+LayerNorm
+MLP
+k ×
+Skip Connection
+k ×
+Even Shadow Image
+Compact NAFNet
+Initial Restored Image
+Shadow Input
+Shadow 
+Input
+Final 
+Output
+Figure 3. Overview of the Team LUMOS proposed EvenFormer.
+7.2. LUMOS
+Team LUMOS proposes the EvenFormer architecture
+to perform image restoration for the unevenly distributed
+Shadow Removal task. An overview of their solution is
+available in Figure 3. To take advantage of the strong con-
+textual information extraction capability of transformers in
+modeling long sequences, they utilize a Vision Transformer
+framework consistent with [27]. As the images in the chal-
+lenge are of high-resolution, they propose a dynamic ap-
+proach to assist the transformer module in efficiently han-
+dling large, 2K-sized, images. LUMOS found that a single-
+stage network results in poor performance when handling
+strong shadows, in particular artifacts caused by the trans-
+former block processing. To remedy this issue they intro-
+duce a NAFNet [6] based refinement stage, implementing a
+Coarse-to-Fine image restoration, similar to [86].
+7.3. ACVLab
+The solution by ACVLab is based on the OmniSR [72]
+architecture. To further enhance the results of the baseline,
+ACVLab incorporated the Frequency-Aware Feature Fusion
+method FreqFusion [7] into its decoder stage. As shadow
+areas typically retain texture information, which is primar-
+Figure 4. The Fusion Network for Image Shadow Removal pro-
+posed by team FusionShadowRemoval.
+ily present in the high frequency band of the image spec-
+trum, this addition enables the model to effectively preserve
+details, enhancing model predictions quality.
+7.4. FusionShadowRemoval
+Team FusionShadowRemoval proposes a dual-branch ar-
+chitecture, combining a ConvNext [49] U-Net branch and
+a DWT-FFC U-Net branch, which has previously shown
+promising results for Image Dehazing and Shadow Removal
+tasks [16, 21, 83]. They adopt block designs proposed by
+ShadowRefiner [16], but notably change the arrangement,
+completely disregarding the second refinement stage. As
+shown in Figure 4, the architecture can be separated into
+three operations.
+The ConvNext U-Net Branch consists of multiscale
+ConvNext [49] and Attention blocks [16].
+Specifically,
+three down-sampling layers and four up-sampling layers are
+used, with each down-sampling followed by a ConvNext
+block for feature extraction. In the deepest layer, the fea-
+tures are processed with an attention block before the en-
+coded features are restored to their original resolution via
+up-sampling blocks supported by skip connections to pass
+global semantic information.
+The DWT-FFC U-Net Branch uses Discrete Wavelet
+Transform (DWT) to extract high-frequency and low-
+frequency features.
+The low-frequency representation is
+spliced with the normal convolutional output, while the
+high-frequency features are passed to the up-sampling mod-
+ule to gradually remove shadows.
+To make the recon-
+structed image more realistic and perceptual, a Fast Fourier
+Convolution Residual block is utilized to remove shadows
+using spatial and spectral information.
+The final Fusion Stage uses a single convolution to fuse
+the features of the ConvNext U-Net branch and the DWT-
+FFC U-Net branch, obtaining the shadow-free output.
+7.5. GLHF
+Team GLHF proposes the ShadowAlpha method based
+on spatial and frequency convolution networks. Inspired by
+
+Input
+Conv+DWT
+DWT+
+↓sample
+DWT+
+↓sample
+DWT+
+↑sample
+DWT+
+↑sample
+FFConv
+DWT+
+↑sample
+Conv
+↓sample
+ConvNeXt
+ConvNeXt
+ConvNeXt
+Attention
+↓sample
+↓sample
+↑sample
+↑sample
+↑sample
+↑sample
+Conv
+NAFNet
+output
+Spatial Branch
+Frequency Branch
+Hi-Freq Part
+Low-Freq Part
+Concatenate
+Figure 5. The ShadowAlpha architecture proposed by GLHF uses
+two parallel processing branches with a final fusion and refinement
+stage.
+Model-1
+Dataset-1
+Dataset-2
+Dataset-3
+Dataset-n
+……
+Dataset-1
+Dataset-2
+Dataset-3
+Dataset-n
+……
+Dataset-1
+Dataset-2
+Dataset-3
+Dataset-n
+……
+FFT loss
+L1 loss
+TV loss
+Model-2
+Model-n
+Training
+Inference
+Output-1
+Output-2
+Output-n
+···
+Maximum
+Ensemble
+Model-1
+Model-2
+Model-n
+···
+Input
+Data Source
+Output
+Input
+Restored
+Figure 6. The multi-dataset maximum ensamble architecture pro-
+posed by the LVGroup HFUT team.
+the architecture ShadowRefiner [16], they adopt it into a
+two-branch design (as shown in Figure 5). The first branch
+extracts robust spatial features via three ConvNeXt stages
+[49]. To improve the global consistency in the final output
+image, a second parallel branch based on a DWT-FFC [83]
+network is used to capture frequency characteristics of the
+shadow-affected regions. The outputs of both branches are
+then fused by a simple convolution before the NAFNet [6]
+refinement stage.
+7.6. LVGroup HFUT
+The submission from LVGroup HFUT combines the
+popular NAFNet [6] architecture with a maximum ensem-
+ble approach. As depicted in Figure 6, they utilize a multi-
+dataset training strategy to improve performance and ro-
+bustness in diverse scenarios. Here, separate NAFNet mod-
+els [6] are initially optimized on different training datasets.
+During the inference process, each model processes the in-
+put image separately in parallel. The final output image is
+obtained by applying a maximum ensemble strategy [65]
+to combine the output of all models into a single image. To
+implement their solution, they train three models on the offi-
+cial challenge training data, and three additional models on
+a combination of WSRD+ [65], ISTD+ [68] and SRD [52].
+As each of the six models offers unique advantages and
+characteristics, this enables the overall architecture to repre-
+sent complementary patterns and features, leading to better
+generalization ability on unseen data.
+Figure 7. The two stage L-Adapter architecture proposed by MI-
+DAS, the second stage utilizes an auxiliary luminance information.
+Figure 8. A graphical representation of the solution proposed by
+Team Alchemist.
+7.7. MIDAS
+The MIDAS team upgrades the Shadow Refiner [16] ar-
+chitecture by injecting luminance information into the new
+color-aware refinement stage (CARS) and applying a Color
+Consistency Constraint on the output image (see Figure 7).
+The Shadow Removal Stage (SRS) adopted from Shadow
+Refiner [16] is designed to eliminate shadows from the input
+by leveraging spatial and frequency representation learn-
+ing. Although SRS effectively eliminates shadows, exper-
+iments performed by the team indicated that it also alters
+object brightness, leading to unintended color shifts within
+the scene. To address this issue, the new CARS with ad-
+ditions color constraint optimization are introduced; these
+additions account for the influence of light sources that al-
+ter the color of objects within the scene.
+Specifically, CARS implements a Restormer [76] archi-
+tecture with additional adapters to inject luminance infor-
+mation. To further reinforce color consistency, constraints
+are applied in both the RGB and the Lab color spaces. In
+the RGB space, the histogram constraint is applied for three
+channels separately, while in the Lab space, constraints on
+the a and b channels ensure accurate color preservation.
+7.8. Alchemist
+As shown in Figure 8, the proposed solution by team
+Alchemist is a U-Net [55] shaped encoder/decoder archi-
+tecture. It primarily employs a ImageNet [13] pre-trained
+ConvNext [49] model as a powerful encoder in conjunction
+with a specialized decoder focusing on restoring bound-
+
+OptiMalDiff: Hybrid Image Restoration with Optimal Transport and Schrödinger Bridge
+Input
+Degraded Image x
+ℝ³ˣᴴˣᵂ
+I. Parallel Feature Extraction Pathways
+Swin Transformer
+Encoder 
+Patch Embedding 
++ Attention
+Structure
+Projection 
+High-Level Features
+ŷ
+Initial 
+Restore
+Conditional
+Diffusion 
+UNet-based Architecture
+Texture
+Projection 
+Fine Detail Recovery
+y_diff
+Texture Details
+Schrödinger Bridge / Optimal Transport
+SamplesLoss (Sinkhorn Divergence) 
+Optimal Path Between Distributions
+II. Multi-Scale Refinement Network (MRefNet)
+MRefNet
+ Feature Fusion
+Coarse-Scale Path
+Down/Up-sampling
+Fine-Scale Path
+Full Resolution
++
+Multi-Scale
+Refinement 
+Enhanced Integration
+y_refined
+Enhanced Details
+III. Adversarial Training Framework
+PatchGAN Discriminator
+Conv + LeakyReLU + InstanceNorm 
+real/fake
+LSGAN Loss
+Combined Loss Optimization
+Diffusion Loss
+Optimal Transport Loss
+MSSSIM+L1 Loss
+Adversarial Loss
+y (Ground Truth)
+Output
+y_restored
+Perceptually Enhanced
+ℝ³ˣᴴˣᵂ
+Structure path
+Texture path
+Distribution alignment
+Structure features
+Texture features
+Original x as condition
+Fused features
+→ y_restored
+Generated Image
+Real Image
+Parallel Feature
+Extraction
+Optimal Transport
+Alignment
+Multi-Scale
+Refinement
+Adversarial
+Enhancement
+Legend
+Structure Path (Swin Transformer)
+Texture Path (Diffusion Model)
+Optimal Transport/Schrödinger Bridge
+Multi-Scale Refinement (MRefNet)
+Adversarial Framework
+ - Frozen weights | 
+ - Trainable weights | 
+ - Bidirectional flow | 
+ - Processing | 
+ - Refinement | 
+ - Discriminator
+Structure flow
+Texture flow
+Refinement flow
+Adversarial flow
+Figure 9. Overview of the OptiMalDiff architecture combining
+Schr¨odinger Bridge diffusion, transformer-based feature extrac-
+tion, and adversarial refinement.
+Figure 10. Overview of the dual branch architecture proposed by
+Oath. One branch restores reflectance while the other restores il-
+lumination information.
+ary details, thereby achieving high-quality shadow removal.
+Notably, the pre-trained ConvNext encoder generates ro-
+bust latent spatial information, enabling the reconstruction
+of shadow boundary details through detail recovery convo-
+lution during decoding.
+7.9. PSU Team
+PSUTeam proposes OptiMalDiff, a high-fidelity image
+enhancement framework that reformulates image denoising
+as an optimal transport problem. The core idea is to model
+the transition from noisy to clean image distributions via a
+Schr¨odinger Bridge-based [12] diffusion process. The ar-
+chitecture (shown in Figure 9) consists of three main com-
+ponents: (1) a hierarchical Swin Transformer [48] backbone
+that extracts both local and global features efficiently, (2) a
+Schr¨odinger Bridge Diffusion Module that learns forward
+and reverse stochastic mappings, and (3) a Multi-Scale Re-
+finement Network (MRefNet) designed to progressively re-
+fine image details. To enhance realism, a PatchGAN dis-
+criminator [31] is integrated for adversarial training.
+The resulting network is trained end-to-end using a com-
+posite loss function that includes diffusion loss, Sinkhorn
+divergence optimal transport loss [14], multi-scale SSIM +
+L1 loss for perceptual quality, and adversarial loss.
+7.10. Oath
+Team Oath proposes ReHiT, an efficient retinex-guided
+histogram transformer for shadow removal, where Retinex
+theory [36] is employed to develop the dual-branch restora-
+tion pipeline. As shown in the proposed architecture (Fig-
+ure 10), after separating reflectance and illuminance via the
+Retinex estimator, each is individually restored by one net-
+work branch [17]. Each branch is a Illumination-Guided
+Hybrid CNN-Transformers (IG-HCT) module composed of
+multiple IG-HCT blocks each containing a Dilated Resid-
+ual Dense Block (DRDB) [74], an Illumination-Guided
+Histogram Transformer Block (IG-HTB), and a Semantic-
+aligned scale-aware module (SAM) [74] to boost the net-
+work’s capability in handling shadow patterns with di-
+verse scales without incurring too much computational cost.
+The design of IG-HTB is inspired by RetinexFormer [4],
+Histoformer [60], and GPP-LLIE [82].
+This block con-
+sists of two-layer normalization (LN), an Illumination-
+Guided Histogram Self-Attention (IG-HSA) layer, and a
+feed-forward network (FFN). Besides the L1 and multi-
+scale SSIM loss [81], the structure loss [80] and additional
+constraints [17] are used for optimization supervision.
+7.11. KLETech-CEVI
+Team KLETech-CEVI proposes WATFormer: Wavelet
+Attention-Based Transformer for Shadow Removal, a two-
+stage shadow removal and refinement model. Inspired by
+[16], an attention mechanism based on wavelet transforms
+is proposed, the image signal being decomposed into var-
+ious frequencies, aiming to improve feature-characteristic
+understanding and analysis, specifically in terms of shadow
+image segments identification. The shadow removal mod-
+ule is based on a ConvNext-driven U-Net, incorporating
+7×7 depth-wise convolution at each resolution level [49].
+In addition, it integrates the frequency branch network from
+[83]. This enables the Shadow Removal module to effec-
+tively utilize both spectral and spatial information for map-
+ping shadow-affected and shadow-free images.
+TIn the
+refinement module, both the encoder and decoder utilize
+Wavelet Attention-Based Transformer (WAT) blocks, de-
+composing the input into multiple frequencies that aid in
+better understanding and feature extraction.
+7.12. ReLIT
+Team ReLIT proposes a novel shadow removal frame-
+work, MatteViT, that integrates shadow matte guidance
+with advanced neural architectures to effectively address
+the challenging task of shadow removal. The overall archi-
+tecture consists of three main components: Shadow Matte
+Generator, Matte-Guided Vision Transformer, and Spatial
+NAFNet for refinement.
+In the first stage, TransUNet [5] is used to predict a
+shadow matte from the input shadow image as a guide for
+
+the subsequent shadow removal process. Training data for
+this is obtained from paired shadow and shadow-free im-
+ages, leveraging luminance differences in the LAB color
+space. This explicit shadow modeling helps to understand
+shadow characteristics such as shape, boundary, and den-
+sity, which are essential for accurate shadow removal.
+The Matte-Guided Vision Transformer (MatteViT) sits at
+the core of this approach, it processes the input image while
+incorporating the shadow matte information generated in
+the previous stage.
+This is achieved through first incor-
+porating shadow matte information into the multi-head at-
+tention mechanism by adjusting attention weights, therefore
+enabling the network to focus more effectively on shadow-
+affected regions during processing.
+Secondly, by imple-
+menting a Feature-wise Linear Modulation (FiLM) mech-
+anism [51] that adaptively adjusts feature representations
+based on frequency information extracted from the input
+image.
+This is achieved by computing the Fast Fourier
+Transform (FFT) of the input image, extracting magnitude
+features, and using these to generate modulation parameters
+(gamma and beta) for conditional processing.
+After processing by MatteViT, the spatial NAFNet [6]
+for refinement then enhances visual quality by addressing
+potential artifacts and improving texture consistency.
+The model is optimized for spatial accuracy and fre-
+quency consistency by using Charbonnier loss for spatial
+domain and FFT loss for frequency domain, preserving lo-
+cal details and global illumination characteristics.
+7.13. MRT-ShadowR
+MRT-ShadowR
+proposes
+the
+Multi-stage
+Residual
+Transformer (MRT) network for shadow removal.
+They
+adopt a Multi-scale Entanglement Scheme described in
+[46] (Sec. 4.16), but tailored for Transformers, helping the
+network learn better multi-scale feature representations. To
+aid in detail preservation the Residual Multi-headed Self-
+Attention, a residually-enhanced attention mechanism is in-
+troduced to help preserve details across various stages in
+the network. Lastly, for enhanced performance and effec-
+tive feature extraction, the Multi-stage Squeeze & Excite
+Fusion Block [2] is included as a post-attention step.
+To optimize our network, a hybrid loss capable of cap-
+turing pixel-level, multi-scale and perceptual cues, as pro-
+posed in [1,3], is adopted, leading to increased effectiveness
+in high-resolution, high-fidelity restoration.
+7.14. CV SVNIT
+Team CV SVNIT a introduces a two-stage approach for
+shadow removal and refinement.
+The Shadow Removal
+module effectively eliminates shadows using a ConvNext-
+based [49] U-Net architecture with multi-scale convolu-
+tional layers (3 × 3, 5 × 5, and 7 × 7 kernels) applied in
+parallel to capture features at various scales. A frequency
+branch network is integrated to jointly process spectral and
+spatial information for accurate shadow removal. The en-
+hancement stage is implemented via a Fast-Fourier Atten-
+tion Transformer architecture with hierarchical encoding
+and decoding.
+7.15. X-L
+The method proposed by X-L is inspired by SR-
+Former [84] and HGNet [85]. Initially, a hue component
+estimation is used to highlight shadow-affected segments in
+the HSV space. Then, both the hue features and the shad-
+owed input are processed separately by the encoder and a
+single permuted self-attention blocks [84] (PSAB) to fur-
+ther achieve compact feature representation. Then, the fea-
+tures are concatenated and processed by five more PSAB
+blocks for combined feature enhancement before obtaining
+the shadow-free image with a decoding module.
+7.16. ZhouBoda
+Team ZhouBoda adopts DNSR [62], a shadow removal
+method that achieves accurate shadow detection, local
+restoration, global coordination, and natural color recov-
+ery through multiscale feature extraction, dynamic feature
+modulation, mask-guided fusion, and dual path refinement.
+7.17. Group No.9
+The Group No.9 team proposes a custom CNN-based
+U-Net architecture enhanced with a pre-trained ResNet-50
+for the extraction of shadow-features. To improve the per-
+formance they implemented self-assembly techniques and
+post-processing such as noise reduction.
+8. Conclusion
+The NTIRE 2025 Image Shadow Removal challenge
+builds on the success of the previous editions, enjoying
+significant attention from the computer vision community.
+Participants jointly optimize for both fidelity and percep-
+tual quality, with two separate evaluation tracks. The chal-
+lenge received a high number of submissions, with the an-
+alyzed solutions achieving a significant quantified perfor-
+mance level in both evaluation settings.
+This shows in
+the quantified PSNR, SSIM and LPIPS characterizing the
+restored images correlating with the rankings of the con-
+ducted user study. Many challenge participants provided
+insightful feedback with future ideas for the next editions
+of the challenge.
+Acknowledgments
+This work was partially supported by the Hum-
+boldt Foundation.
+We thank the NTIRE 2025 spon-
+sors: ByteDance, Meituan, Kuaishou, and University of
+Wurzburg (Computer Vision Lab).
+
+References
+[1] Alexandru Brateanu and Raul Balmez. Kolmogorov-arnold
+networks in transformer attention for low-light image en-
+hancement. In 2024 International Symposium on Electronics
+and Telecommunications (ISETC), pages 1–4, 2024. 8
+[2] Alexandru Brateanu, Raul Balmez, Adrian Avram, Ciprian
+Orhei, and Ancuti Cosmin.
+Lyt-net:
+Lightweight yuv
+transformer-based network for low-light image enhance-
+ment. arXiv preprint arXiv:2401.15204, 2024. 8
+[3] Alexandru Brateanu, Raul Balmez, Ciprian Orhei, Cosmin
+Ancuti, and Codruta Ancuti. Enhancing low-light images
+with kolmogorov–arnold networks in transformer attention.
+Sensors, 25(2), 2025. 8
+[4] Yuanhao Cai, Hao Bian, Jing Lin, Haoqian Wang, Radu Tim-
+ofte, and Yulun Zhang. Retinexformer: One-stage retinex-
+based transformer for low-light image enhancement.
+In
+Proceedings of the IEEE/CVF International Conference on
+Computer Vision, pages 12504–12513, 2023. 7
+[5] Jieneng Chen, Jieru Mei, Xianhang Li, Yongyi Lu, Qihang
+Yu, Qingyue Wei, Xiangde Luo, Yutong Xie, Ehsan Adeli,
+Yan Wang, et al.
+Transunet: Rethinking the u-net archi-
+tecture design for medical image segmentation through the
+lens of transformers. Medical Image Analysis, page 103280,
+2024. 7
+[6] Liangyu Chen, Xiaojie Chu, Xiangyu Zhang, and Jian Sun.
+Simple baselines for image restoration.
+arXiv preprint
+arXiv:2204.04676, 2022. 5, 6, 8
+[7] Linwei Chen, Ying Fu, Lin Gu, Chenggang Yan, Tatsuya
+Harada, and Gao Huang. Frequency-aware feature fusion for
+dense image prediction. IEEE Transactions on Pattern Anal-
+ysis and Machine Intelligence, 46(12):10763–10780, 2024.
+
+[8] Zheng Chen, Kai Liu, Jue Gong, Jingkai Wang, Lei Sun,
+Zongwei Wu, Radu Timofte, Yulun Zhang, et al. NTIRE
+2025 challenge on image super-resolution (×4): Methods
+and results.
+In Proceedings of the IEEE/CVF Conference
+on Computer Vision and Pattern Recognition (CVPR) Work-
+shops, 2025. 2
+[9] Zheng Chen, Jingkai Wang, Kai Liu, Jue Gong, Lei Sun,
+Zongwei Wu, Radu Timofte, Yulun Zhang, et al. NTIRE
+2025 challenge on real-world face restoration: Methods and
+results.
+In Proceedings of the IEEE/CVF Conference on
+Computer Vision and Pattern Recognition (CVPR) Work-
+shops, 2025. 2
+[10] Marcos Conde, Radu Timofte, et al. NTIRE 2025 challenge
+on raw image restoration and super-resolution. In Proceed-
+ings of the IEEE/CVF Conference on Computer Vision and
+Pattern Recognition (CVPR) Workshops, 2025. 2
+[11] Marcos Conde, Radu Timofte, et al. Raw image reconstruc-
+tion from RGB on smartphones. NTIRE 2025 challenge re-
+port. In Proceedings of the IEEE/CVF Conference on Com-
+puter Vision and Pattern Recognition (CVPR) Workshops,
+2025. 2
+[12] Valentin De Bortoli, James Thornton, Jeremy Heng, and Ar-
+naud Doucet. Diffusion schr¨odinger bridge with applications
+to score-based generative modeling. Advances in Neural In-
+formation Processing Systems, 34:17695–17709, 2021. 7
+[13] Jia Deng, Wei Dong, Richard Socher, Li-Jia Li, Kai Li,
+and Li Fei-Fei. Imagenet: A large-scale hierarchical image
+database. In CVPR, 2009. 6
+[14] Simone Di Marino and Augusto Gerolin. Optimal transport
+losses and sinkhorn algorithm with general convex regular-
+ization. arXiv preprint arXiv:2007.00976, 2020. 7
+[15] Bin Ding, Chengjiang Long, Ling Zhang, and Chunxia Xiao.
+Argan: Attentive recurrent generative adversarial network
+for shadow detection and removal.
+In Proceedings of the
+IEEE/CVF International Conference on Computer Vision,
+pages 10213–10222, 2019. 1
+[16] Wei Dong, Han Zhou, Yuqiong Tian, Jingke Sun, Xiaohong
+Liu, Guangtao Zhai, and Jun Chen. ShadowRefiner: Towards
+mask-free shadow removal via fast fourier transformer. In
+Proceedings of the IEEE/CVF Conference on Computer Vi-
+sion and Pattern Recognition (CVPR) Workshops, 2024. 5,
+6, 7
+[17] Wei Dong, Han Zhou, Yulun Zhang, Xiaohong Liu, and Jun
+Chen. Ecmamba: Consolidating selective state space model
+with retinex guidance for efficient multiple exposure correc-
+tion. Advances in Neural Information Processing Systems,
+37:53438–53457, 2024. 7
+[18] Egor Ershov, Sergey Korchagin, Alexei Khalin, Artyom Pan-
+shin, Arseniy Terekhin, Ekaterina Zaychenkova, Georgiy
+Lobarev, Vsevolod Plokhotnyuk, Denis Abramov, Elisey
+Zhdanov, Sofia Dorogova, Yasin Mamedov, Nikola Banic,
+Georgii Perevozchikov, Radu Timofte, et al. NTIRE 2025
+challenge on night photography rendering. In Proceedings
+of the IEEE/CVF Conference on Computer Vision and Pat-
+tern Recognition (CVPR) Workshops, 2025. 2
+[19] Graham D Finlayson, Mark S Drew, and Cheng Lu. Entropy
+minimization for shadow removal. International Journal of
+Computer Vision, 85(1):35–57, 2009. 1
+[20] Graham D Finlayson, Steven D Hordley, and Mark S Drew.
+Removing shadows from images. In European conference
+on computer vision, pages 823–836. Springer, 2002. 1
+[21] Minghan Fu, Huan Liu, Yankun Yu, Jun Chen, and Keyan
+Wang. Dw-gan: A discrete wavelet transform gan for nonho-
+mogeneous dehazing. In Proceedings of the IEEE/CVF con-
+ference on computer vision and pattern recognition, pages
+203–212, 2021. 5
+[22] Yuqian Fu, Xingyu Qiu, Bin Ren Yanwei Fu, Radu Timofte,
+Nicu Sebe, Ming-Hsuan Yang, Luc Van Gool, et al. NTIRE
+2025 challenge on cross-domain few-shot object detection:
+Methods and results. In Proceedings of the IEEE/CVF Con-
+ference on Computer Vision and Pattern Recognition (CVPR)
+Workshops, 2025. 2
+[23] Maciej Gryka, Michael Terry, and Gabriel J. Brostow. Learn-
+ing to remove soft shadows. ACM Transactions on Graphics,
+2015. 1, 2
+[24] Lanqing Guo, Siyu Huang, Ding Liu, Hao Cheng, and Bihan
+Wen. Shadowformer: Global context helps image shadow
+removal. arXiv preprint arXiv:2302.01650, 2023. 1
+[25] Lanqing Guo, Chong Wang, Wenhan Yang, Siyu Huang,
+Yufei Wang, Hanspeter Pfister, and Bihan Wen. Shadowd-
+iffusion: When degradation prior meets diffusion model for
+shadow removal.
+In Proceedings of the IEEE/CVF Con-
+
+ference on Computer Vision and Pattern Recognition, pages
+14049–14058, 2023. 1
+[26] Shuhao Han, Haotian Fan, Fangyuan Kong, Wenjie Liao,
+Chunle Guo, Chongyi Li, Radu Timofte, et al. NTIRE 2025
+challenge on text to image generation model quality assess-
+ment. In Proceedings of the IEEE/CVF Conference on Com-
+puter Vision and Pattern Recognition (CVPR) Workshops,
+2025. 2
+[27] Kaiming He, Xinlei Chen, Saining Xie, Yanghao Li, Piotr
+Doll´ar, and Ross Girshick. Masked autoencoders are scalable
+vision learners, 2021. 5
+[28] Jonathan Ho, Ajay Jain, and Pieter Abbeel. Denoising dif-
+fusion probabilistic models. Advances in neural information
+processing systems, 33:6840–6851, 2020. 1
+[29] Jin Hu, Mingjia Li, and Xiaojie Guo. Shadowhack: Hack-
+ing shadows via luminance-color divide and conquer. CoRR,
+abs/2412.02545, 2024. 3
+[30] Xiaowei Hu, Yitong Jiang, Chi-Wing Fu, and Pheng-Ann
+Heng.
+Mask-ShadowGAN: Learning to remove shadows
+from unpaired data. In ICCV, 2019. 1
+[31] Phillip Isola, Jun-Yan Zhu, Tinghui Zhou, and Alexei A
+Efros. Image-to-image translation with conditional adver-
+sarial networks. In Proceedings of the IEEE conference on
+computer vision and pattern recognition, pages 1125–1134,
+2017. 7
+[32] Varun Jain, Zongwei Wu, Quan Zou, Louis Florentin, Hen-
+rik Turbell, Sandeep Siddhartha, Radu Timofte, et al. NTIRE
+2025 challenge on video quality enhancement for video con-
+ferencing: Datasets, methods and results. In Proceedings of
+the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR) Workshops, 2025. 2
+[33] Yeying Jin, Aashish Sharma, and Robby T Tan.
+Dc-
+shadownet: Single-image hard and soft shadow removal
+using unsupervised domain-classifier guided network.
+In
+Proceedings of the IEEE/CVF International Conference on
+Computer Vision, pages 5027–5036, 2021. 1, 2
+[34] Yeying Jin, Wei Ye, Wenhan Yang, Yuan Yuan, and Robby T
+Tan. Des3: Adaptive attention-driven self and soft shadow
+removal using vit similarity.
+In Proceedings of the AAAI
+Conference on Artificial Intelligence, volume 38, pages
+2634–2642, 2024. 1
+[35] Alex Krizhevsky, Ilya Sutskever, and Geoffrey E. Hinton.
+Imagenet classification with deep convolutional neural net-
+works. Commun. ACM, 60(6):84–90, may 2017. 3
+[36] Edwin H Land. The retinex theory of color vision. Scientific
+american, 237(6):108–129, 1977. 7
+[37] Hieu Le and Dimitris Samaras. Shadow removal via shadow
+image decomposition. In The IEEE International Conference
+on Computer Vision (ICCV), October 2019. 1
+[38] Hieu Le and Dimitris Samaras. From shadow segmentation
+to shadow removal. In The IEEE European Conference on
+Computer Vision (ECCV), August 2020. 1, 2
+[39] Hieu Le and Dimitris Samaras. Physics-based shadow im-
+age decomposition for shadow removal. IEEE Transactions
+on Pattern Analysis and Machine Intelligence, 44(12):9088–
+9101, 2021. 4
+[40] Sangmin Lee, Eunpil Park, Angel Canelo, Hyunhee Park,
+Youngjo Kim, Hyungju Chun, Xin Jin, Chongyi Li, Chun-Le
+Guo, Radu Timofte, et al. NTIRE 2025 challenge on efficient
+burst hdr and restoration: Datasets, methods, and results. In
+Proceedings of the IEEE/CVF Conference on Computer Vi-
+sion and Pattern Recognition (CVPR) Workshops, 2025. 2
+[41] Xin Li, Yeying Jin, Xin Jin, Zongwei Wu, Bingchen Li, Yufei
+Wang, Wenhan Yang, Yu Li, Zhibo Chen, Bihan Wen, Robby
+Tan, Radu Timofte, et al. NTIRE 2025 challenge on day and
+night raindrop removal for dual-focused images: Methods
+and results.
+In Proceedings of the IEEE/CVF Conference
+on Computer Vision and Pattern Recognition (CVPR) Work-
+shops, 2025. 2
+[42] Xin Li, Xijun Wang, Bingchen Li, Kun Yuan, Yizhen Shao,
+Suhang Yao, Ming Sun, Chao Zhou, Radu Timofte, and
+Zhibo Chen. NTIRE 2025 challenge on short-form ugc video
+quality assessment and enhancement: Kwaisr dataset and
+study. In Proceedings of the IEEE/CVF Conference on Com-
+puter Vision and Pattern Recognition (CVPR) Workshops,
+2025. 2
+[43] Xin Li, Kun Yuan, Bingchen Li, Fengbin Guan, Yizhen
+Shao, Zihao Yu, Xijun Wang, Yiting Lu, Wei Luo, Suhang
+Yao, Ming Sun, Chao Zhou, Zhibo Chen, Radu Timofte,
+et al. NTIRE 2025 challenge on short-form ugc video quality
+assessment and enhancement: Methods and results. In Pro-
+ceedings of the IEEE/CVF Conference on Computer Vision
+and Pattern Recognition (CVPR) Workshops, 2025. 2
+[44] Jie Liang, Radu Timofte, Qiaosi Yi, Zhengqiang Zhang,
+Shuaizheng Liu, Lingchen Sun, Rongyuan Wu, Xindong
+Zhang, Hui Zeng, Lei Zhang, et al. NTIRE 2025 the 2nd
+restore any image model (RAIM) in the wild challenge. In
+Proceedings of the IEEE/CVF Conference on Computer Vi-
+sion and Pattern Recognition (CVPR) Workshops, 2025. 2
+[45] Xiaohong Liu, Xiongkuo Min, Qiang Hu, Xiaoyun Zhang,
+Jie Guo, et al. NTIRE 2025 XGC quality assessment chal-
+lenge: Methods and results. In Proceedings of the IEEE/CVF
+Conference on Computer Vision and Pattern Recognition
+(CVPR) Workshops, 2025. 2
+[46] Xiaoning Liu, Zongwei WU, Ao Li, Florin-Alexandru
+Vasluianu, Yulun Zhang, Shuhang Gu, Le Zhang, Ce Zhu,
+Radu Timofte, et al. NTIRE 2024 challenge on low light im-
+age enhancement: Methods and results. In Proceedings of
+the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR) Workshops, 2024. 8
+[47] Xiaoning Liu, Zongwei Wu, Florin-Alexandru Vasluianu,
+Hailong Yan, Bin Ren, Yulun Zhang, Shuhang Gu, Le
+Zhang, Ce Zhu, Radu Timofte, et al. NTIRE 2025 challenge
+on low light image enhancement: Methods and results. In
+Proceedings of the IEEE/CVF Conference on Computer Vi-
+sion and Pattern Recognition (CVPR) Workshops, 2025. 2
+[48] Ze Liu, Yutong Lin, Yue Cao, Han Hu, Yixuan Wei, Zheng
+Zhang, Stephen Lin, and Baining Guo. Swin transformer:
+Hierarchical vision transformer using shifted windows. In
+Proceedings of the IEEE/CVF International Conference on
+Computer Vision (ICCV), 2021. 7
+[49] Zhuang Liu, Hanzi Mao, Chao-Yuan Wu, Christoph Feicht-
+enhofer, Trevor Darrell, and Xie Saining. A convnet for the
+
+2020s. In Proceedings of the IEEE/CVF Conference on Com-
+puter Vision and Pattern Recognition, 2022. 5, 6, 7, 8
+[50] Adrien Pavao, Isabelle Guyon, Anne-Catherine Letour-
+nel, Xavier Bar´o, Hugo Escalante, Sergio Escalera, Tyler
+Thomas, and Zhen Xu.
+Codalab competitions: An open
+source platform to organize scientific challenges. Technical
+report, 2022. 2, 3
+[51] Ethan Perez, Florian Strub, Harm De Vries, Vincent Du-
+moulin, and Aaron Courville. Film: Visual reasoning with a
+general conditioning layer. In Proceedings of the AAAI con-
+ference on artificial intelligence, volume 32, 2018. 8
+[52] L. Qu, J. Tian, S. He, Y. Tang, and R. W. H. Lau. Deshad-
+ownet: A multi-context embedding deep network for shadow
+removal. In 2017 IEEE Conference on Computer Vision and
+Pattern Recognition (CVPR), pages 2308–2316, July 2017.
+1, 2, 6
+[53] Nikhila Ravi, Valentin Gabeur, Yuan-Ting Hu, Ronghang
+Hu, Chaitanya Ryali, Tengyu Ma, Haitham Khedr, Roman
+R¨adle, Chloe Rolland, Laura Gustafson, Eric Mintun, Junt-
+ing Pan, Kalyan Vasudev Alwala, Nicolas Carion, Chao-
+Yuan Wu, Ross Girshick, Piotr Doll´ar, and Christoph Feicht-
+enhofer. Sam 2: Segment anything in images and videos.
+arXiv preprint arXiv:2408.00714, 2024. 3, 5
+[54] Bin Ren, Hang Guo, Lei Sun, Zongwei Wu, Radu Timo-
+fte, Yawei Li, et al. The tenth NTIRE 2025 efficient super-
+resolution challenge report. In Proceedings of the IEEE/CVF
+Conference on Computer Vision and Pattern Recognition
+(CVPR) Workshops, 2025. 2
+[55] Olaf Ronneberger, Philipp Fischer, and Thomas Brox. U-
+net: Convolutional networks for biomedical image segmen-
+tation. In Medical Image Computing and Computer-Assisted
+Intervention–MICCAI 2015: 18th International Conference,
+Munich, Germany, October 5-9, 2015, Proceedings, Part III
+18, pages 234–241. Springer, 2015. 6
+[56] Nickolay Safonov, Alexey Bryntsev, Andrey Moskalenko,
+Dmitry Kulikov, Dmitriy Vatolin, Radu Timofte, et al.
+NTIRE 2025 challenge on UGC video enhancement: Meth-
+ods and results. In Proceedings of the IEEE/CVF Conference
+on Computer Vision and Pattern Recognition (CVPR) Work-
+shops, 2025. 2
+[57] Yael Shor and Dani Lischinski. The shadow meets the mask:
+Pyramid-based shadow removal. Computer Graphics Forum,
+27(2):577–586, Apr. 2008. 1
+[58] Lei Sun, Andrea Alfarano, Peiqi Duan, Shaolin Su, Kaiwei
+Wang, Boxin Shi, Radu Timofte, Danda Pani Paudel, Luc
+Van Gool, et al.
+NTIRE 2025 challenge on event-based
+image deblurring: Methods and results. In Proceedings of
+the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR) Workshops, 2025. 2
+[59] Lei Sun, Hang Guo, Bin Ren, Luc Van Gool, Radu Timo-
+fte, Yawei Li, et al. The tenth ntire 2025 image denoising
+challenge report. In Proceedings of the IEEE/CVF Confer-
+ence on Computer Vision and Pattern Recognition (CVPR)
+Workshops, 2025. 2
+[60] Shangquan Sun, Wenqi Ren, Xinwei Gao, Rui Wang, and
+Xiaochun Cao. Restoring images in adverse weather condi-
+tions via histogram transformer. In European Conference on
+Computer Vision, pages 111–129. Springer, 2024. 7
+[61] Florin-Alexandru Vasluianu, Andr´es Romero, Luc Van Gool,
+and Radu Timofte.
+Shadow removal with paired and un-
+paired learning. In Proceedings of the IEEE/CVF Confer-
+ence on Computer Vision and Pattern Recognition, pages
+826–835, 2021. 1, 2
+[62] Florin-Alexandru Vasluianu, Tim Seizinger, and Radu Tim-
+ofte. Wsrd: A novel benchmark for high resolution image
+shadow removal. In Proceedings of the IEEE/CVF Confer-
+ence on Computer Vision and Pattern Recognition, 2023. 1,
+2, 4, 8
+[63] Florin-Alexandru Vasluianu, Tim Seizinger, Radu Timofte,
+Shuhao Cui, Junshi Huang, Shuman Tian, Mingyuan Fan,
+Jiaqi Zhang, Li Zhu, Xiaoming Wei, et al. Ntire 2023 im-
+age shadow removal challenge report.
+In Proceedings of
+the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition, pages 1788–1807, 2023. 2, 4
+[64] Florin-Alexandru Vasluianu, Tim Seizinger, Zongwei Wu,
+Rakesh Ranjan, and Radu Timofte. Towards image ambient
+lighting normalization.
+arXiv preprint arXiv:2403.18730,
+2024. 2, 4
+[65] Florin-Alexandru Vasluianu, Tim Seizinger, Zhuyun Zhou,
+Zongwei Wu, Cailian Chen, Radu Timofte, Wei Dong, Han
+Zhou, Yuqiong Tian, Jun Chen, Xueyang Fu, Xin Lu, Yurui
+Zhu, Xi Wang, Dong Li, Jie Xiao, Yunpeng Zhang, Zheng-
+Jun Zha, Zhao Zhang, Suiyi Zhao, Bo Wang, Yan Luo,
+Yanyan Wei, Zhihao Zhao, Long Sun, Tingting Yang, Jin-
+shan Pan, Jiangxin Dong, Jinhui Tang, Bilel Benjdira, Mo-
+hammed Nassif, Anis Koubaa, Ahmed Elhayek, Anas M.
+Ali, Kyotaro Tokoro, Kento Kawai, Kaname Yokoyama,
+Takuya Seno, Yuki Kondo, Norimichi Ukita, Chenghua Li,
+Bo Yang, Zhiqi Wu, Gao Chen, Yihan Yu, Sixiang Chen,
+Kai Zhang, Tian Ye, Wenbin Zou, Yunlong Lin, Zhaohu
+Xing, Jinbin Bai, Wenhao Chai, Lei Zhu, Ritik Mahesh-
+wari, Rakshank Verma, Rahul Tekchandani, Praful Ham-
+barde, Satya Narayan Tazi, Santosh Kumar Vipparthi, Sub-
+rahmanyam Murala, Jaeho Lee, Seongwan Kim, Sharif S M
+A, Nodirkhuja Khujaev, Roman Tsoy, Fan Gao, Weidan Yan,
+Wenze Shao, Dengyin Zhang, Bin Chen, Siqi Zhang, Yanxin
+Qian, Yuanbin Chen, Yuanbo Zhou, Tong Tong, Rongfeng
+Wei, Ruiqi Sun, Yue Liu, Nikhil Akalwadi, Amogh Joshi,
+Sampada Malagi, Chaitra Desai, Ramesh Ashok Tabib,
+Uma Mudenagudi, Ali Murtaza, Uswah Khairuddin, Ah-
+mad Athif Mohd Faudzi, Adinath Dukre, Vivek Deshmukh,
+Shruti S. Phutke, Ashutosh Kulkarni, Santosh Kumar Vip-
+parthi, Anil Gonde, Subrahmanyam Murala, Arun Karthik
+K, Manasa N, Shri Hari Priya, Wei Hao, Xingzhuo Yan,
+and Minghan Fu. Ntire 2024 image shadow removal chal-
+lenge report. In Proceedings of the IEEE/CVF Conference
+on Computer Vision and Pattern Recognition (CVPR) Work-
+shops, pages 6547–6570, June 2024. 4, 6
+[66] Florin-Alexandru Vasluianu, Tim Seizinger, Zhuyun Zhou,
+Zongwei Wu, Radu Timofte, et al.
+NTIRE 2025 ambi-
+ent lighting normalization challenge.
+In Proceedings of
+the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR) Workshops, 2025. 2
+[67] T. F. Y. Vicente, M. Hoai, and D. Samaras. Leave-one-out
+kernel optimization for shadow detection and removal. IEEE
+
+Transactions on Pattern Analysis and Machine Intelligence,
+40(3):682–695, March 2018. 1
+[68] Jifeng Wang, Xiang Li, and Jian Yang. Stacked conditional
+generative adversarial networks for jointly learning shadow
+detection and shadow removal. In Proceedings of the IEEE
+Conference on Computer Vision and Pattern Recognition,
+pages 1788–1797, 2018. 1, 2, 4, 6
+[69] Yingqian Wang, Zhengyu Liang, Fengyuan Zhang, Lvli
+Tian, Longguang Wang, Juncheng Li, Jungang Yang, Radu
+Timofte, Yulan Guo, et al. NTIRE 2025 challenge on light
+field image super-resolution: Methods and results. In Pro-
+ceedings of the IEEE/CVF Conference on Computer Vision
+and Pattern Recognition (CVPR) Workshops, 2025. 2
+[70] Zhou Wang, Alan C Bovik, Hamid R Sheikh, and Eero P Si-
+moncelli. Image quality assessment: from error visibility to
+structural similarity. IEEE transactions on image processing,
+13(4):600–612, 2004. 3
+[71] Tai-Pang Wu, Chi-Keung Tang, Michael S. Brown, and
+Heung-Yeung Shum. Natural shadow matting. ACM Trans.
+Graph., 26(2):8–es, June 2007. 1
+[72] Jiamin Xu, Zelong Li, Yuxin Zheng, Chenyu Huang, Ren-
+shu Gu, Weiwei Xu, and Gang Xu. Omnisr: Shadow re-
+moval under direct and indirect lighting.
+arXiv preprint
+arXiv:2410.01719, 2024. 5
+[73] Kangning Yang, Jie Cai, Ling Ouyang, Florin-Alexandru
+Vasluianu, Radu Timofte, Jiaming Ding, Huiming Sun, Lan
+Fu, Jinlong Li, Chiu Man Ho, Zibo Meng, et al. NTIRE
+2025 challenge on single image reflection removal in the
+wild: Datasets, methods and results.
+In Proceedings of
+the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR) Workshops, 2025. 2
+[74] Xin Yu, Peng Dai, Wenbo Li, Lan Ma, Jiajun Shen, Jia Li,
+and Xiaojuan Qi. Towards efficient and scale-robust ultra-
+high-definition image demoir´eing. In European Conference
+on Computer Vision, pages 646–662. Springer, 2022. 7
+[75] Pierluigi Zama Ramirez, Fabio Tosi, Luigi Di Stefano, Radu
+Timofte, Alex Costanzino, Matteo Poggi, Samuele Salti, Ste-
+fano Mattoccia, et al. NTIRE 2025 challenge on hr depth
+from images of specular and transparent surfaces. In Pro-
+ceedings of the IEEE/CVF Conference on Computer Vision
+and Pattern Recognition (CVPR) Workshops, 2025. 2
+[76] Waqas Zamir, Syed, Aditya Arora, Salman Khan, Mu-
+nawar Hayat, Fahad Khan, Shahbaz, and Ming-Hsuang Yan.
+Restormer: Efficient transformer for high-resolution image
+restoration. In Proceedings of the IEEE/CVF Conference on
+Computer Vision and Pattern Recognition, 2022. 6
+[77] Zheng Zeng, Valentin Deschaintre, Iliyan Georgiev, Yan-
+nick Hold-Geoffroy, Yiwei Hu, Fujun Luan, Ling-Qi Yan,
+and Milos Hasan. Rgb\leftrightarrow x: Image decomposition and syn-
+thesis using material- and lighting-aware diffusion mod-
+els. In Andres Burbano, Denis Zorin, and Wojciech Jarosz,
+editors, ACM SIGGRAPH 2024 Conference Papers, SIG-
+GRAPH 2024, Denver, CO, USA, 27 July 2024- 1 August
+2024, page 75. ACM, 2024. 3, 5
+[78] Richard Zhang, Phillip Isola, Alexei A Efros, Eli Shechtman,
+and Oliver Wang. The unreasonable effectiveness of deep
+features as a perceptual metric. In CVPR, 2018. 3
+[79] Xiao Feng Zhang, Chao Chen Gu, and Shan Ying Zhu. Spa-
+former: Transformer image shadow detection and removal
+via spatial attention. arXiv e-prints, pages arXiv–2206, 2022.
+
+[80] Han Zhou, Wei Dong, and Jun Chen. Lita-gs: Illumination-
+agnostic novel view synthesis via reference-free 3d gaus-
+sian
+splatting
+and
+physical
+priors.
+arXiv
+preprint
+arXiv:2504.00219, 2025. 7
+[81] Han Zhou, Wei Dong, Xiaohong Liu, Shuaicheng Liu,
+Xiongkuo Min, Guangtao Zhai, and Jun Chen. Glare: Low
+light image enhancement via generative latent feature based
+codebook retrieval. In European Conference on Computer
+Vision, pages 36–54. Springer, 2024. 7
+[82] Han Zhou, Wei Dong, Xiaohong Liu, Yulun Zhang, Guang-
+tao Zhai, and Jun Chen.
+Low-light image enhance-
+ment via generative perceptual priors.
+arXiv preprint
+arXiv:2412.20916, 2024. 7
+[83] Han Zhou, Wei Dong, Yangyi Liu, and Jun Chen. Breaking
+through the haze: An advanced non-homogeneous dehazing
+method based on fast fourier convolution and convnext. In
+Proceedings of the IEEE/CVF Conference on Computer Vi-
+sion and Pattern Recognition Workshops, 2023. 5, 6, 7
+[84] Yupeng Zhou, Zhen Li, Chun-Le Guo, Song Bai, Ming-Ming
+Cheng, and Qibin Hou. Srformer: Permuted self-attention
+for single image super-resolution.
+In Proceedings of the
+IEEE/CVF International Conference on Computer Vision,
+pages 12780–12791, 2023. 8
+[85] Yurui Zhu, Xueyang Fu, Zheyu Zhang, Aiping Liu, Zhiwei
+Xiong, and Zheng-Jun Zha. Hue guidance network for single
+image reflection removal. IEEE Transactions on Neural Net-
+works and Learning Systems, 35(10):13701–13712, 2024. 8
+[86] Yurui Zhu, Xi Wang, Xueyang Fu, and Xiaowei Hu. En-
+hanced coarse-to-fine network for image restoration from
+under-display cameras. In Computer Vision – ECCV 2022
+Workshops: Tel Aviv, Israel, October 23–27, 2022, Pro-
+ceedings, Part V, page 130–146, Berlin, Heidelberg, 2023.
+Springer-Verlag. 5
+
+A. Teams and Affiliations
+NTIRE 2025 Image Shadow Removal Challenge
+Team
+Members:
+Florin-Alexandru Vasluianu1, Tim Seizinger1, Zhuyun
+Zhou1, Cailian Chen2, Zongwei Wu1, Radu Timofte1
+Affiliations:
+1 Computer Vision Lab, IFI & CAIDAS, University of
+W¨urzburg
+2 Shanghai Jiaotong University, China
+X-Shadow
+Title:
+Leveraging Intrinsic Hint for High-Quality Mask-Free
+Shadow Removal
+Members:
+Mingjia Li1, Jin Hu1, Hainuo Wang1, Hengxing Liu1,
+Jiarui Wang1, Qiming Hu1, Xiaojie Guo1
+Affiliations:
+1 Tianjin University, Tianjin, China
+LUMOS
+Title:
+EvenFormer:
+Dynamic Even Transformer for High-
+Resolution Image Shadow Removal
+Members:
+Xin Lu1, Yurui Zhu1, Xingbo Wang1, Yuanfei Bao1,
+Jiarong Yang1, Anya Hu1, Kunyu Wang1, Zihao Fan1, Jie
+Xiao1, Dong Li1, Xi Wang1, Hongjian Liu1, Xueyang Fu1,
+Zheng-Jun Zha1
+Affiliations:
+1 University of Science and Technology of China, Hefei,
+China
+ACVLab
+Title:
+Enhanced OmniSR for Shadow Removal with Frequency
+Fusion Signal
+Members:
+Yu-Fan Lin1, Chia-Ming Lee1, Chih-Chung Hsu1,2
+textbfAffiliations:
+1 Institute of Data Science, National Cheng Kung Univer-
+sity
+2 Institute of Intelligent Systems, National Yang Ming
+Chiao Tung University
+FusionShadowRemoval
+Title:
+A Fusion Network for Image Shadow Removal
+Members:
+Yuxu Chen1, Bin Chen1, Hongwei Wang1, Yuanbin Chen1,
+Yuanbo Zhou1, Tong Tong1
+Affiliations:
+1 Fuzhou University, China
+GLHF
+Title:
+ShadowAlpha:
+Shadow Removal with Spatial and Fre-
+quency Convolution Network
+Members:
+Jiarong Yang1, Yuanfei Bao1, Anya Hu1, Xin Lu1, Zihao
+Fan1, Xingbo Wang1, Kunyu Wang1, Jie Xiao1, Dong
+Li1, Yurui Zhu1, Xi Wang1, Yupeng Xiao1, Xueyang Fu1,
+Zheng-Jun Zha1
+Affiliations:
+1 University of Science and Technology of China, Hefei,
+China
+LVGroup HFUT
+Title:
+Enhancing Shadow Removal via Multi-Dataset Ensemble
+Learning
+Members:
+Zhao Zhang1, Suiyi Zhao1, Bo Wang1, Yan Luo1, Ming-
+shen Wang1, Yilin Zhang1, Yanyan Wei1
+Affiliations:
+1 Hefei University of Technology, China
+MIDAS
+Title:
+L-Adapter:
+Adapters injects luminance knowledge into
+pre-trained model with color constraint
+Members:
+Ziyu Feng1, Shidi Chen1, Bowen Luan1, Zewen Chen1
+Affiliations:
+1 Beijing Jiaotong University, Beijing, China
+Alchemist
+Title:
+Prior guided differential information compensated image
+shadow removal network
+Members:
+Haobo Liang1, Yan Yang1, Jiajie Jing1, Junyu Li1
+Affiliations:
+
+1 School of Electronics and Information Engineering,
+Lanzhou Jiaotong University, China
+PSU Team
+Title:
+OptimalDiff:
+High-Fidelity Image Enhancement Using
+Schr¨odinger Bridge Diffusion and Multi-Scale Adversarial
+Refinement
+Members:
+Bilel Benjdira1, Anas M. Ali1, Wadii Boulila1
+Affiliations:
+1 Robotics and Internet-of-Things Laboratory,
+Prince
+Sultan University, Riyadh 12435, Saudi Arabia
+Oath
+Title:
+ReHiT: Retinex-guided Histogram Transformer for Mask-
+free Shadow Removal
+Members:
+Wei Dong1, Han Zhou1, Seyed Amirreza Mousavi1, Jun
+Chen1
+Affiliations:
+1 McMaster University
+KLETech-CEVI
+Title:
+WATFormer:
+Wavelet Attention-Based Transformer for
+Shadow Removal
+Members:
+Vijayalaxmi Ashok Aralikatti1,3, G Gyaneshwar Rao2,3,
+Nikhil Akalwadi1,3, Chaitra Desai1,3, Ramesh Ashok
+Tabib2,3, Uma Mudenagudi2,3
+Affiliations:
+1 School of Computer Science and Engineering, KLE
+Technological University
+2 School of Electronics and Communication Engineering,
+KLE Technological University
+3 Center of Excellence in Visual Intelligence (CEVI) KLE
+Technological University
+ReLIT
+Title:
+MatteViT: Shadow-Aware Transformer for High-Fidelity
+Shadow Removal
+Members:
+Seoyeon Lee1, Chaewon Kim1
+Affiliations:
+1 Kookmin University, South Korea
+MRT-ShadowR
+Title:
+Shadow Removal via Multi-stage Residual Transformer
+Members:
+Alexandru Brateanu1, Ciprian Orhei2, Cosmin Ancuti2
+Affiliations:
+1 University of Manchester
+2 Politehnica University Timisoara
+CV SVNIT
+Title:
+Deshadownet
+Members:
+Tanmay Chaturvedi1, Manish Kumar1, Anmol Srivastav1,
+Daksh Trivedi1, Shashwat Thakur1, Kishor Upla1
+Affiliations:
+1 Sardar Vallabhbhai National Institute of Technology
+X-L
+Title:
+Efficient Hue Guidance Network for Single Image Shadow
+Removal
+Members:
+Zeyu Xiao1, Zhuoyuan Li2
+Affiliations:
+1 National University of Singapore
+2 University of Science and Technology of China
+ZhouBoda
+Members:
+Boda Zhou
+GroupNo9
+Members:
+Shashank Shekhar1, Rishi Agarwal1, Prachi Atri1, Choud-
+hary Sumit Jaswant1, Prince Kumar1, Shathak Arya1,
+Sudhanshu Kumar1, Kanka Dutta1, Raushan Kumar1
+Affiliations:
+1 Jawaharlal Nehru University

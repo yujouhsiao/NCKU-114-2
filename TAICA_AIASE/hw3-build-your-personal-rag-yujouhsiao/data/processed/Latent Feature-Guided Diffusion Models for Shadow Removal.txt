@@ -1,0 +1,1310 @@
+Latent Feature-Guided Diffusion Models for Shadow Removal
+Kangfu Mei* 1,2, Luis Figueroa2, Zhe Lin2, Zhihong Ding2,
+Scott Cohen2, Vishal M. Patel† 1
+1 Johns Hopkins University, 2 Adobe Research
+https://kfmei.page/shadow-diffusion/
+Abstract
+Recovering textures under shadows has remained a chal-
+lenging problem due to the difficulty of inferring shadow-
+free scenes from shadow images. In this paper, we propose
+the use of diffusion models as they offer a promising ap-
+proach to gradually refine the details of shadow regions
+during the diffusion process.
+Our method improves this
+process by conditioning on a learned latent feature space
+that inherits the characteristics of shadow-free images, thus
+avoiding the limitation of conventional methods that con-
+dition on degraded images only. Additionally, we propose
+to alleviate potential local optima during training by fus-
+ing noise features with the diffusion network. We demon-
+strate the effectiveness of our approach which outperforms
+the previous best method by 13% in terms of RMSE on the
+AISTD dataset. Further, we explore instance-level shadow
+removal, where our model outperforms the previous best
+method by 82% in terms of RMSE on the DESOBA dataset.
+1. Introduction
+Images captured in natural illumination often contain
+shadows caused by objects blocking the light from the il-
+lumination source. Shadows can degrade the performance
+of many computer vision algorithms, such as detection, seg-
+mentation, and recognition [31,51]. Furthermore, removing
+shadows is essential for photo-editing applications such as
+distractor removal [49] and relighting [20]; which may rely
+on instance-level shadow removal. Therefore, it is critical
+to develop methods that can automatically remove shadows
+from captured images as works explored in literature.
+Recently, diffusion models [40] with hierarchical denois-
+ing autoencoders [17] have shown to achieve impressive
+synthesis performance in terms of sample quality and diver-
+sity. The conditional generation ability further allows for
+*This work was done during an internship at Adobe Research.
+†Vishal M. Patel was supported by NSF CAREER award 2045489.
+iterative refinement and fine-grained control according to
+certain conditions. Motivated by the success of diffusion-
+based image restoration models [36,39], we adapt diffusion
+models for the task of shadow removal by conditioning on
+the input shadow image and corresponding shadow mask as
+a baseline approach to generate shadow-free images. How-
+ever, preserving and generating high-fidelity textures and
+colors in the shadow region after removal is non-trivial. The
+baseline model appears to favor borrowing textures from
+the surrounding non-shadow areas rather than focusing on
+restoring the original details underneath the shadow, which
+results in incorrect color mixtures and loss of detail in the
+shadow region. In Fig. 2, we show one of the representative
+issues of image-mask conditioning, i.e., the model synthe-
+sizes results containing an incorrect color mixture.
+Intuitively, the intensity drop in shadow regions means
+that diffusion models are typically guided more strongly by
+the surrounding non-shadow areas. However, this guidance
+can harm the fidelity of the result if the texture and color un-
+der the shadow differs significantly from the surrounding ar-
+eas. In addition, the multi-head attention module [43] used
+in diffusion models can exacerbate this issue by extracting
+global information. This motivates us to consider guiding
+the conditioned diffusion models with an additional latent
+feature space that captures external perceptual shadow-free
+information as the shadow removal priors.
+Our proposed method differs from latent diffusion mod-
+els (LDMs) [36] in that we incorporate a learnable feature
+encoder to discover a latent feature space. To optimize the
+latent feature encoder, we minimize the difference between
+the feature space of shadow images and that of shadow-free
+images, using it as the loss function. Through experimen-
+tation, we have found that optimizing the encoder together
+with the diffusion models leads to a compact and percep-
+tual latent feature space. Additionally, we demonstrate that
+pretraining the diffusion model on shadow-free images sim-
+plifies the optimization process and is crucial for achieving
+high-fidelity synthesis. By guiding the diffusion models on
+the latent feature space, instead of just conditioning on the
+shadow image and mask, we observe significant improve-
+This WACV paper is the Open Access version, provided by the Computer Vision Foundation.
+Except for this watermark, it is identical to the accepted version;
+the final published version of the proceedings is available on IEEE Xplore.
+
+Figure 1. Given a shadow mask, our method effectively removes shadows and recovers the underlying details for shadows at the general
+level (top two rows) or instance level (bottom two rows). From left to right, we show the input image, shadow mask, SG-ShadowNet [44]
+result, our method result, and shadow-free images for comparisons.
+ments in shadow removal capability.
+In addition to the proposed latent feature space guidance,
+we propose an improved diffusion network that addresses
+the issue of posterior collapse [5, 16, 52], which refers to
+the local optima of diffusion models. We identify the local
+optimum as the degrading effect of the noise variable and
+introduce a Dense Latent Variable Fusion (DLVF) module
+that includes dense skip connections between the embed-
+ding of the noise and diffusion network. DLVF significantly
+improves shadow removal results without introducing addi-
+tional parameters or running complexity. In summary, this
+paper makes the following contributions:
+• A new shadow removal model that addresses the chal-
+lenging task of general and instance-level shadow re-
+moval.
+This is the first work, to the best of our
+knowledge, to demonstrate the applicability of diffu-
+sion models for instance shadow removal.
+• We show that it is possible to acquire compact and
+perceptual guidance in a learned feature space that is
+optimized together with the diffusion models, without
+relying on handcrafted features or physical quantities.
+• We identify the local optimum of diffusion models that
+degrades the model results and introduce a dense latent
+variable fusion module to alleviate it, leading to signif-
+icant performance improvement.
+2. Related Work
+Shadow Removal.
+The major challenge of modern
+learning-based shadow removal approaches comes from the
+large diversity of real-world shadow scenes. The perfor-
+mance of recent shadow removal methods degrades signifi-
+cantly on out-of-distribution scenes [1]. Various approaches
+Shadow & Mask
+Baseline Result
+Our Result
+Figure 2. Our baseline method, which conditions diffusion mod-
+els solely on shadow and mask images, produces incorrect results
+such as color mixing in highlight areas. In contrast, our proposed
+method generates results with consistent and reasonable colors
+that match the surrounding area.
+have been explored for addressing this issue, such as using
+physical illumination models, handcrafted priors, and im-
+age gradients [8, 9, 15]. The recent trend has been in de-
+veloping learning-based methods that can predict shadow-
+free scenes [2,11,21,23,27] or intermediate factors [25,26]
+for restoration. These methods have improved from pre-
+vious methods in learning data [27], shadow effects [23],
+network architecture [2,13,45], and learning target decom-
+position [25, 26, 50]. In particular, generative models have
+gained some traction for shadow removal. ARGAN [6] re-
+moves the effect of shadow in a progressive manner de-
+termined by a discriminator. Nevertheless, these end-to-
+end GAN-based methods lack generalizability on the out-
+of-distribution shadow images without significant modifica-
+tions. Recent diffusion models have shown promising per-
+formance in general image restoration tasks but are rarely
+explored in shadow removal [30, 32, 37]. In this work, we
+first propose to apply diffusion models for removing shad-
+ows, to leverage their impressive capacity of perceptual syn-
+thesis, which is shown to be capable of gradually preserving
+details in denoising sequences.
+
+
+
+
+
+	
+
+
+
+F
+F
+
+
+
+	
+
+
+
+
+
+
+(x, m)
+yt
+yt-1
+pθ(yt−1|yt, Eθ(x, m), x, m)
+yT
+y0
+Backward 
+
+
+
+
+
+Eθ(x, m)
+(x, m)
+Figure 3. Our diffusion model architecture is illustrated in this backward diffusion diagram. The latent feature encoder Eθ(·) takes the
+shadow image x ∈R3×H×W and shadow mask m ∈R1×H×W as input, with a resolution of H × W, and acquires the latent feature in a
+compressed dimension of 1 × H × W. The diffusion network ϵθ(·) conditioned on (x, m) takes the latent feature concatenated with the
+noisy image yt ∈R3×H×W as input, and estimates the noiseless image yt−1 ∈R3×H×W at each diffusion process pθ(·). In this process,
+the noise encoder takes the noise image yt as input and acquires a 1-D vector as the noise embedding, which is fused with the diffusion
+network features by modulation for escaping the local optima.
+Latent Feature Space Guidance. Guidance has become an
+essential component of diffusion models and powers spec-
+tacular image generation results in recent works.
+Typi-
+cal guidance for diffusion models includes class informa-
+tion [4], text description [35, 38], and even gradients [18].
+Nevertheless, these features cannot be easily adopted in
+shadow removal to provide more guidance than images. In
+literature, physical quantities and handcrafted features have
+been heavily explored for guiding the restoration network.
+Zhu et al. [53] propose to guide the network with an esti-
+mated shadow-invariant color map, and Wan et al. [44] pro-
+pose to guide the network with coarse de-shadowed images.
+Illumination invariant representations [7,12,41] are another
+related approach that aims to decompose intrinsic images
+by finding quantities invariant to color, density, or shading.
+In our approach, we define a new latent feature space for
+guiding diffusion models. By maximizing the similarity be-
+tween the shadow and shadow-free latents, we empirically
+demonstrate that it better guides the diffusion model to re-
+move shadows by encapsulating essential perceptual infor-
+mation as a shadow-free prior.
+Posterior Collapse.
+The problem of posterior collapse
+refers to undesirable local optima first observed in the train-
+ing of VAE models [24]. Efforts to address it have included
+aggressive optimization of the inference network proposed
+by He et al. [16], weakening the generator by Fu et al. [10],
+and changing the objective function by Tolstikhin et al. [42].
+In this work, we show that although this issue has primar-
+ily been investigated in VAE models, conditional diffusion
+models can also suffer from similar issues. Specifically,
+the conditions used in diffusion models usually provide
+stronger guidance compared to the latent noise variable. In-
+spired by previous efforts to address the issue, we propose a
+new Dense Latent Variable Fusion (DLVF) module for dif-
+fusion models and experimentally demonstrate that this de-
+sign improvement improves shadow removal results with-
+out introducing additional costs or modifications. Different
+from the other latent-based diffusion methods [33,36], ours
+uses simpler pixel space and models shadow-free image dis-
+tribution.
+3. Proposed Method
+3.1. Conditional Diffusion Models
+Diffusion Forward Process. The denoising diffusion mod-
+els have been shown to be effective for modeling complex
+data distributions by reversing a gradual noising process.
+For the shadow-free image distribution, we define the for-
+ward diffusion process that destroys a shadow-free image
+y ∼q(y) with T successive standard noises:
+q(yt|yt−1) = N
+
+yt;
+p
+βty0, (1 −βt) I
+
+.
+(1)
+Alternatively, we can use the reparameterization trick [24]
+to express this as:
+q(yt|y0) = N
+ yt; √¯αty0, (1 −¯αt) I
+
+= √¯αty0 + ϵ
+√
+1 −¯αt, ϵ ∼N(0, I),
+(2)
+where the variance schedule {β1, . . . , βT } linear increases
+and has a closed form αt = 1 −βt and ¯αt := Qt
+s=1 αs.
+Diffusion Backward Process. The reversion of q(yt|yt−1)
+is tractable by conditioning on image y0, and it results in
+sampling arbitrary shadow-free images from noise yT ∼
+N(0, I) for removal as:
+q (yt−1|yt, y0) = N
+
+yt−1; ˜µ (yt, y0) , ˜βtI
+
+.
+(3)
+According to Bayes’ rule and Eq. (2), we represent ˜µt as:
+˜µt (yt, y0) :=
+
+√αt
+(yt −1 −αt
+√1 −¯αt
+ϵt).
+(4)
+
+(a) Guidance in Pretraining Stage
+(b) Guidance in Finetuning Stage
+input (y0, 0)
+
+latent Eθ(y0, 0)
+
+
+
+...
+input (x, m)
+
+
+
+
+...
+latent Eθ(x, m) diffusion pθ(yT:0|x, m) 
+result y0
+result y0
+diffusion pθ(yT:0|y, 0) 
+latent Eθ(y0, 0)
+Figure 4. The diagram illustrates the two-stage learning approach
+used in our proposed method. In the pretraining stage (top row),
+the diffusion network is trained on shadow-free images to learn a
+latent feature space that captures informative shadow-free priors
+as guidance. In the finetuning stage (bottom row), we initialize the
+diffusion network with the pretraining weights from (a) for shadow
+removal under the latent feature guidance.
+Ho et al. [17] suggests modeling the process with pθ by op-
+timizing the variational lower bound (LV LB) as:
+LVLB = LT + LT −1 + · · · + L0,
+(5)
+which is defined with Kullback–Leibler (KL) divergence as:
+LT = DKL(q(yT |y0) ∥pθ(yT )),
+Lt = DKL(q(yt|yt+1, y0) ∥pθ(yt|yt+1)),
+L0 = −log pθ(y0|y1),
+(6)
+and the effective simplification of Lt is
+Lsimple := E
+h
+∥ϵ −ϵθ (yt, t)∥2i
+.
+(7)
+Diffusion Conditioning.
+A straightforward approach to
+producing shadow-free results is to condition diffusion
+models on the shadow image x and shadow mask m by con-
+catenating them with noise yt along the channel dimension:
+pθ (yt−1|yt) := pθ (yt−1|yt, x, m, t) .
+(8)
+In the following sections, we will discuss our improvement
+based on the baseline following Eq. (8) that takes image x,
+yt, and mask m as input and predicts the shadow-free noise
+yt−1 for effective shadow removal as pθ (yt−1|yt, t).
+3.2. Latent Feature Guidance
+The proposed latent feature encoder Eθ(·) uses the same
+network architecture as the diffusion network ϵθ(·) with the
+exception of a timestep embedding and predicts a single-
+channel feature map that has the same spatial dimension as
+the shadow image x. It guides the diffusion process Eq. (8)
+by concatenating the guidance with conditions:
+pθ (yt−1|yt) := pθ (yt−1|yt, Eθ(x, m), t) .
+(9)
+(a)
+(b)
+(c)
+(d)
+Figure 5. Visual comparisons of different guidance strategies in
+shadow removal literature. (a) to (d): shadow image, invariant
+color map [53], coarse deshadowed image [44], and our learned
+latent feature. Our approach provides more perceptual information
+than (b) and contains fewer shadow features than (c), which still
+retains a shadow boundary.
+We propose to learn to extract shadow-free priors using the
+latent feature space by minimizing the invariant loss be-
+tween the encoded shadow-free images and shadow images
+with shadow masks as:
+arg min
+θ
+∥Eθ(y0, 0) −Eθ(x, m)∥2 .
+(10)
+In order to extract a compact and perceptual feature space to
+guide the diffusion model, we optimize the encoder together
+with the whole network during training based on Eq. (7):
+Lsimple :=E
+h
+∥ϵ −ϵθ (yt, Eθ(x, m), x, m, t)∥2i
++ ∥Eθ(y0, 0) −Eθ(x, m)∥2 .
+(11)
+Moreover, we empirically find that pretraining the dif-
+fusion model ϵθ(·) and then finetuning it accelerates the
+optimization of Eq. (11). Intuitively, the pretraining strat-
+egy provides a good starting point to finetune the diffu-
+sion model, such that the encoder has already learned to
+model the important characteristics of shadow-free images
+such as shadow-free textures and colors. This feature space
+provides strong guidance during finetuning for minimizing
+shadow features with the invariant loss, allowing the model
+to achieve higher-quality results.
+
+mean of approximate yt
+
+mean of approximate yt−1
+mean(yt−1)=mean(yt)
+collapsed samples
+collapsed samples
+−0.02
+0.00
+0.02
+network w/o. DLVF module
+−0.02
+0.00
+0.02
+−0.02
+0.00
+0.02
+network w. DLVF module
+−0.02
+0.00
+0.02
+Figure 6. We visualize the mean space of variables to show the
+collapse and our effects. The horizontal and vertical axis represent
+the mean of predicted yt and yt−1, respectively. The dashed di-
+agonal line represents when the approximate noise is relevant. By
+projecting denoised samples, the results show the network with
+our DLVF (third) successfully moves points onto the diagonal line
+and away from collapses compared to without it (second).
+Subsequently, we propose a two-stage learning approach
+
+for guiding the diffusion models including pretraining and
+finetuning as shown in Fig. 4 as:
+• Optimize the diffusion network ϵθ together with the
+latent encoder Eθ for modeling the characteristics of
+shadow-free images by minimizing the loss:
+E
+h
+∥ϵ −ϵθ (yt, Eθ(y0, 0), y0, m, t)∥2i
+.
+(12)
+• Finetune the encoder Eθ and diffusion network ϵθ by
+optimizing Eq. (11) to effectively remove shadows and
+preserve the underlying texture.
+To demonstrate the effectiveness of our proposed latent
+feature guidance, Fig. 5 compares it with existing guidance
+strategies in shadow removal literature, including
+[44],
+which conditions on estimated coarse de-shadowed images,
+and
+[53], which conditions on estimated invariant color
+maps for restoration. Our approach preserves more shadow-
+free perceptual details compared to the estimated invariant
+color map, which only consists of large color blocks. Simi-
+larly, our approach retains fewer shadow features compared
+to the estimated coarse de-shadowed image, which still re-
+tains shadow boundaries that may lead to incorrect results.
+3.3. Dense Latent Variable Fusion Module
+The phenomenon known as posterior collapse occurs
+when the training procedure of generative models falls into
+a trivial local optimum of LV LB, causing the model to ig-
+nore the latent variable and collapse the model posterior to
+the prior, which has only been discussed in VAE [16]. Given
+the intrinsic similarity between diffusion models and VAE,
+we first determine the collapse issue of diffusion models un-
+der guidance and then address it with a new module.
+In our proposed diffusion models, we parameterize the
+variational distribution pθ(yt−1|yt, y0) with the latent vari-
+able yt under the guidance Eθ(x, m) in Eq. (9). In this case,
+the local optima are characterized by:
+pθ(yt−1) = pθ (yt−1 | yt, Eθ(x, m), t)
+= pθ (yt−1 | yt) pθ (yt−1 | Eθ(x, m), t)
+:= pθ (yt−1 | Eθ(x, m), t) .
+(13)
+This is undesirable since a crucial goal of diffusion models
+is to produce diverse outputs. This is particularly important
+for shadow removal, where complex shadow distributions
+exist that cannot be easily represented by guidance alone.
+Much attention has been devoted to remedying the poste-
+rior collapse of VAE models. However, some of these meth-
+ods weaken the encoder or modeling capability of posterior-
+related components, as observed in [10, 16].
+Other ap-
+proaches, such as those proposed in [42, 48], significantly
+complicate the optimization.
+In this work, we introduce a new Dense Latent Variable
+Fusion (DLVF) module that works in tandem with the dif-
+fusion network to establish strong links between the latent
+variable and the generated results. To elaborate, for each
+block G(·)n of the diffusion network [4] at level n, the fea-
+ture hn−1 and the embedding of emb(yt) generated by a
+three-layer MLP are both inputted as:
+hn = G(hn−1, emb(yt) ↓2n, t)n,
+(14)
+where ↓2n denotes the pooling operation with a scaling fac-
+tor of 2n to match the dimension of the features hn−1. To
+achieve a larger receptive field for the latent variable embed-
+ding, we employ fully-connected layers as an additional en-
+coder before inputting them into the network and use adap-
+tive pooling operations to transform the noise into vectors:
+y′
+t = Pooling(Enoise(yt)), y′
+t ∈R1×N,
+(15)
+where N is the size of the vector noise. The connection
+between the embedding emb(yt) ↓2n and the network fea-
+tures hn−1 is conducted by point-wise summing.
+To demonstrate the collapse and effectiveness of our
+method, we visualize the correspondence between the latent
+variable yt and approximated yt−1, which are randomly
+selected from T denoising processes, shown in Fig. 6. In
+comparison to the baseline without our fusion strategies, our
+method shows a stronger correspondence between the two
+variables, indicating a better optimum in the training dy-
+namics. This ultimately results in more effective removal.
+4. Experiments
+We provide further implementation details, including the
+settings of the network and optimizer, in the supplemental.
+Shadow Removal Benchmarks. We conduct both quan-
+titative and qualitative comparisons on three benchmarks:
+ISTD [46], AISTD [25], and SRD [34]. The ISTD dataset
+is a real-world shadow-removal benchmark that consists
+of 1,330 image triplets for training and 540 image triplets
+for testing. The image triplet includes the shadow image,
+shadow mask, and the corresponding shadow-free image.
+The shadow mask is extracted from the binary difference
+between the shadow image and the shadow-free image. The
+AISTD dataset uses the same scene as the ISTD dataset but
+avoids inconsistent color between the shadow and shadow-
+free image for accurate comparisons. SRD contains differ-
+ent scenes and consists of 2,680 image pairs for training and
+408 image pairs for testing. Since SRD does not contain bi-
+nary masks for the shadow regions, we follow the common
+practice and use the masks generated by Cu et al. [3]. For
+data processing, we empirically dilate all shadow masks in a
+kernel size of k = 21 to address incomplete shadow masks.
+Instance-level Shadow Removal Benchmark. We con-
+duct various experiments with visual comparisons on
+shadow images collected from the internet.
+The major
+difference between the above benchmarks and instance-
+shadow images is the number of shadows in the image,
+whereas the latter usually has more than one shadow in-
+stances. The major collections of our instance-shadow im-
+ages come from the shadow object association (SOBA)
+
+Table 1. Quantitative result comparisons of our methods and the state-of-the-art methods on AISTD. The best and second-best
+performance is indicated with bold and italic respectively. We use ↑and ↓to suggest better high/lower score.
+shadow region
+non-shadow region
+all image
+Method
+RMSE ↓
+PSNR ↑
+SSIM ↑
+RMSE ↓
+PSNR ↑
+SSIM ↑
+RMSE ↓
+PSNR ↑
+SSIM ↑
+SP+M-Net [25]
+ICCV-19
+5.93
+37.96
+0.990
+3.05
+35.77
+0.973
+3.51
+32.90
+0.957
+DHAN [3]
+AAAI-20
+11.38
+33.18
+0.987
+7.15
+27.10
+0.972
+7.81
+25.65
+0.954
+Param+M+D-Net [26]
+ECCV-20
+9.67
+33.46
+0.985
+2.91
+34.85
+0.974
+3.98
+30.13
+0.945
+G2R-ShadowNet [27]
+CVPR-21
+7.38
+36.24
+0.988
+3.00
+35.26
+0.975
+3.69
+31.90
+0.953
+Auto-Exposure [11]
+CVPR-21
+6.57
+36.30
+0.976
+3.83
+31.10
+0.874
+4.27
+29.44
+0.838
+DC-ShadowNet [23]
+ICCV-21
+10.57
+32.15
+0.976
+3.82
+34.99
+0.969
+4.80
+28.75
+0.925
+EMDN [54]
+AAAI-22
+7.94
+36.44
+0.986
+4.78
+31.80
+0.962
+5.28
+29.98
+0.940
+SG-ShadowNet [44]
+ECCV-22
+5.93
+37.25
+0.989
+3.00
+35.27
+0.975
+3.46
+32.42
+0.956
+BMN [53]
+CVPR-22
+5.69
+38.00
+0.991
+2.52
+37.35
+0.981
+3.02
+33.93
+0.966
+Palette Diffusion [37]
+SIGGRAPH-22
+15.40
+-
+-
+7.82
+-
+-
+6.41
+-
+-
+Repaint Diffusion [30]
+CVPR-22
+12.90
+-
+-
+10.66
+-
+-
+24.90
+-
+-
+LFG-Diffusion
+Ours
+5.15
+39.36
+0.991
+2.47
+37.69
+0.981
+2.90
+34.69
+0.968
+shadow image
+39.72
+20.87
+0.944
+2.51
+36.63
+0.980
+8.38
+20.45
+0.908
+Shadow & Mask
+Param+M+D-Net [26]
+G2R-ShadowNet [27]
+DC-ShadowNet [23]
+SG-ShadowNet [44]
+LFG-Diffusion (Ours)
+Ground Truth
+Figure 7. Visual comparisons of the representative hard shadow removal results on AISTD dataset. Here we highlight the details of
+shadow regions that are marked with green box in the blue box area, where ours best perseveres details and removes shadow effects. Please
+see the supplement for additional visual results.
+dataset [47]. We use the manually manipulated shadow-
+free images of the DESOBA dataset [19] as ground truths
+for removing shadows at the instance level. For the network
+training, we synthesize shadow image triplets following the
+method proposed by Inoue et al. [22]. Please see the sup-
+plement for a deep analysis of the synthesized data.
+4.1. Performance Evaluation
+We evaluate our proposed algorithm against state-of-the-
+art shadow-removal methods, including SP+M-Net [25],
+DHAN [3], Param+M+D-Net [26], G2R-ShadowNet [27],
+Auto-Exposure [11], DC-ShadowNet [23], EMDN [54],
+BMN [53], and SG-ShadowNet [44], as well as two rep-
+resentative image restoration diffusion models, Palette Dif-
+fusion [30], and Repaint Diffusion [37].
+The evaluation
+metrics include the Root Mean Square Error (RMSE) be-
+tween the shadow-free results and the ground truth in the
+LAB color space as well as the Peak Signal-to-Noise Ratio
+(PSNR) and structural similarity (SSIM) in the RGB space.
+We also provide the metrics measured on the whole image
+and non-shadow region for reference. Following previous
+methods [11, 26, 27], we interpolate the results with a res-
+olution of 256 × 256 for evaluation. We also present the
+metrics evaluated on the shadow images for reference.
+The first row in Tab. 1 shows the quantitative results
+on the AISTD dataset. Compared with the representative
+end-to-end learning-based methods, including EMDN [54],
+Auto-Exposure [11] and DHAN [3], ours significantly out-
+performs them in all regions.
+The performance gap be-
+tween them and ours in the non-shadow and full regions
+further indicates the superiority of our model in generat-
+ing high-quality textures of backgrounds. As expected, the
+comparison between ours and the other generative meth-
+ods, including BMN [53], DC-ShadowNet [23], and G2R-
+ShadowNet [27] demonstrate that our method achieves
+equal performance improvement in different regions.
+In
+contrast, the other methods fail in regions with specific tex-
+tures. The difference suggests the guidance effectiveness of
+our modeled latent feature, which is capable of balancing
+the unbalanced guidance from the surrounding non-shadow
+areas and shadow regions via the invariant loss function
+to aid the model in preserving texture and color. The re-
+sults shown in Tab. 2 on the SRD and ISTD datasets further
+demonstrate the superiority of our method over the others.
+Visual comparison from the AISTD dataset in Fig. 7 and
+SRD dataset in Fig. 8 further validates the effectiveness of
+our method. As shown in Fig. 7, our method demonstrates
+robustness to imperfect shadow mask inputs and preserves
+
+Table 2. Quantitative comparison results of our methods and the state-of-the-art methods on the ISTD dataset and SRD dataset.
+We want to remark on a slight performance drop in the non-shadow region of our method. The reason is that the two benchmarks are un-
+adjusted, which means the shadow and shadow-free image pairs were captured at different lighting environments. The color inconsistency
+would result in inaccurate non-shadow region and all image measurement.
+(a) ISTD dataset results.
+shadow region
+non-shadow region
+all image
+Method
+RMSE ↓
+PSNR ↑
+SSIM ↑
+RMSE ↓
+PSNR ↑
+SSIM ↑
+RMSE ↓
+PSNR ↑
+SSIM ↑
+DHAN [3]
+7.53
+35.82
+0.989
+5.33
+30.95
+0.971
+5.68
+29.09
+0.953
+G2R-ShadowNet [27]
+10.72
+31.63
+0.975
+-
+-
+-
+-
+-
+-
+Auto-Exposure [11]
+7.82
+34.94
+0.973
+5.59
+28.57
+0.862
+5.94
+27.19
+0.824
+DC-ShadowNet [23]
+11.43
+31.69
+0.976
+5.86
+28.92
+0.956
+6.62
+26.38
+0.917
+EMDN [54]
+7.94
+36.44
+0.986
+4.78
+31.80
+0.962
+5.28
+29.98
+0.940
+SG-ShadowNet [44]
+-
+-
+-
+-
+-
+-
+-
+-
+-
+BMN [53]
+7.44
+35.73
+0.989
+4.61
+32.73
+0.976
+5.06
+30.26
+0.957
+LFG-Diffusion (Ours)
+6.41
+37.19
+0.990
+4.65
+32.60
+0.977
+4.93
+30.64
+0.963
+shadow image
+32.67
+22.43
+0.953
+6.77
+27.27
+0.974
+10.86
+20.56
+0.908
+(b) SRD dataset result.
+shadow region
+Method
+RMSE ↓
+PSNR ↑
+SSIM
+DHAN [3]
+8.94
+33.67
+0.978
+G2R-ShadowNet [27]
+-
+-
+-
+Auto-exposure [11]
+8.86
+34.93
+0.963
+DC-ShadowNet [23]
+7.86
+36.34
+0.970
+EMDN [54]
+9.83
+32.48
+0.928
+SG-ShadowNet [44]
+8.00
+35.53
+0.974
+BMN [53]
+7.40
+36.81
+0.979
+LFG-Diffusion (Ours)
+6.81
+37.42
+0.979
+shadow image
+46.24
+19.95
+0.889
+Shadows
+Shadow Mask
+Auto-Exposure [11]
+DHAN [3]
+EMDN [54]
+BMN [53]
+LFG-Diffusion (Ours)
+Ground Truth
+Figure 8. Visual comparisons of the representative hard shadow cases from the SRD dataset.
+the textures as well as removing other subtle shadow effects.
+4.2. Instance Shadow Removal Evaluation
+For real-world applications, shadows cast by objects in
+the scene are usually instance-level; thus, preserving the
+other shadows while accurately removing the target instance
+shadow is crucial. Here, we compare our method with the
+most recent shadow removal work SG-ShadowNet [44] to
+demonstrate the generalizability of our method, where we
+finetuned it with the same dataset synthesized for our exper-
+iments. Sample results are shown in Fig. 9. Compared with
+the SG-ShadowNet, ours thoroughly removes the shadow
+from the images. As far as we know, this is the first work to
+demonstrate the applicability of instance shadow removal.
+4.3. Ablation Study and Analysis
+Effects of the DLVF module. In Tab. 3, we investigate the
+effectiveness of the proposed DLVF module. We use two
+alternative methods for comparison: a lagged posterior ap-
+proach [16] for addressing the posterior collapse, which ag-
+gressively optimizes the diffusion network before optimiz-
+ing the latent feature encoder, and the baseline approach
+that uses a diffusion network without the fusion strategy.
+The results show that lagged posterior is less effective,
+with only a slight improvement margin over the baseline,
+which could be due to the large complexity of diffusion
+Table 3. Effects of different types of strategies for address-
+ing the posterior collapse in diffusion models. We only show
+shadow region results that are distinguishing.
+AISTD dataset
+Settings
+Region
+RMSE ↓
+PSNR ↑
+SSIM ↑
+w/o. fusion
+shadow
+6.75
+36.34
+0.990
+lagged posterior
+shadow
+6.65
+36.27
+0.990
+dense fusion (Ours)
+shadow
+5.92
+37.70
+0.990
+models and difficulty in training. In contrast, our proposed
+dense fusion scheme outperforms the baseline by a margin
+of 0.83 RMSE. Moreover, we visually demonstrate its ef-
+fectiveness by showing the correspondence of the denoised
+results yt−1 and yt in Fig. 6. These results validate the idea
+proposed in our DLVF, i.e., fusing more noise features into
+each block of the diffusion network is a promising approach
+for alleviating the local optima of training diffusion models.
+Effects of Latent Feature Space Guidance. Tab. 4 com-
+pares different types of diffusion model guidance for re-
+moving shadows, including (a) estimated invariant color
+map, (b) estimated coarse de-shadowed image, (c) learned
+latent feature space without invariant loss, and (d) learn
+latent feature space with our two-stage learning.
+Our
+proposed setting achieves a significantly better numerical
+
+shadow image
+shadow mask, SG-ShadowNet result, ours, and shadow-free image from L to R
+Figure 9. Visual comparisons of the real instance shadow removal results on the DeSOBA dataset.
+performance compared to the others.
+Interestingly, the
+guidance (i.e. coarse deshadowed) that provides the most
+pixel information performs worse than the guidance (i.e.
+invariant color map) that only provides a simple color
+map. After deeply looking at their visualization in Fig. 5,
+we observe that even coarse de-shadowed image still con-
+tains shadow boundary that may mislead the diffusion mod-
+els, while the color map omits most shadow features, which
+demonstrates that only encapsulating shadow-free features
+is crucial for improving the performance. Correspondingly,
+our latent feature is acquired by minimizing the difference
+between the encoded features of shadow and shadow-free
+images, which implicitly omits shadow features, and it con-
+tains more perceptual features because we optimize it to-
+gether with diffusion models for learning denoising. There-
+fore, it guides diffusion models with more shadow-free fea-
+tures and outperforms the compared methods.
+Table 4. Effects of different types of diffusion model guidance
+that provides shadow-free priors.
+AISTD dataset
+Settings
+Region
+RMSE ↓
+PSNR ↑
+SSIM ↑
+invariant color map [53]
+shadow
+7.72
+36.24
+0.986
+coarse deshadowed [44]
+shadow
+8.03
+35.74
+0.988
+¯Eθ(x, m)
+shadow
+7.59
+36.65
+0.984
+Eθ(x, m) (Ours)
+shadow
+5.92
+37.70
+0.990
+Table 5. Complexity comparisons of our distilled lighter model
+with the accelerated diffusion solver.
+AISTD dataset (RMSE)
+Method
+params
+time
+shadow
+non-shadow
+all
+BMN
+0.4M
+1.69s
+5.69
+2.52
+3.02
+G2R-ShadowNet
+22.8M
+0.36s
+7.38
+3.00
+3.69
+LFG-Diffusion (Ours)
+82.6M
+2.76s
+5.15
+2.47
+2.90
+LFG-Diffusion (Distilled)
+25.5M
+0.24s
+5.21
+2.34
+2.94
+Model Complexity Analysis. Our work focuses on adapt-
+ing diffusion models to address shadow removal, and there-
+fore we prioritize exploration over analysis of model com-
+plexity and inference time. However, we demonstrate the
+feasibility of our approach in terms of model complexity
+and inference time using advanced technologies such as
+those proposed in [28] for reducing model parameters with-
+out sacrificing performance, and [29] for accelerating dif-
+fusion sampling in Tab. 5. We find that even with similar
+settings, our lighter model outperforms compared methods
+with better restoration performance and is also faster.
+ShadowDiffusion Comparison. Given the similar between
+the recent ShadowDiffusion [14] (SD) and our method,
+which both characterize the shadow-free image distribu-
+tion by conditioning diffusion models, ours further explores
+shadow removal at the instance level without any modifica-
+tions to the model. The other difference is majorly in the
+method complexity, i.e., tackling challenges such as color-
+mixing and collapse, often arising from direct conditioning
+on shadow images. SD integrates a pre-trained shadow re-
+moval network. In contrast, ours models the shadow-free
+priors through two-stage learning and mitigates collapse us-
+ing dense fusion modules. Tab. 6 demonstrates our effi-
+ciency in the shadow region of AISTD. (‡We use their eval-
+uation settings that give different numbers.)
+Table 6. Quantitative comparison with ShadowDiffusion.
+Model
+params(↓)
+time(↓)
+RMSE(↓)
+ShadowDiffusion [14]
+602.6M*
+7.54s*
+4.9†
+LFG-Diffusion (Ours)
+82.6M
+2.76s
+5.0‡
+5. Conclusion
+In this work, we introduced a novel class of diffusion
+models that significantly outperform existing shadow re-
+moval methods at the general and instance level. By in-
+corporating a latent feature space that captures perceptual
+shadow-free priors, we have shown that this guidance can
+mitigate the unbalanced guidance issue between shadow
+and non-shadow areas during restoration. Furthermore, we
+have proposed the DLVF module, which strengthens the
+connections between latent variable of noise and the diffu-
+sion network to prevent local optimum. Our comprehensive
+evaluations and analyses have demonstrated the superior ef-
+fectiveness of our method compared to existing state-of-the-
+art shadow removal methods. We believe that our proposed
+diffusion model-based technique has the potential to be ap-
+plied to other similar ill-posed low-level problems.
+
+References
+[1] Eli Arbel and Hagit Hel-Or. Shadow removal using intensity
+surfaces and texture anchor points. IEEE TPAMI, 2010. 2
+[2] Zipei Chen, Chengjiang Long, Ling Zhang, and Chunxia
+Xiao. Canet: A context-aware network for shadow removal.
+In ICCV, 2021. 2
+[3] Xiaodong Cun, Chi-Man Pun, and Cheng Shi.
+Towards
+ghost-free shadow removal via dual hierarchical aggregation
+network and shadow matting GAN. In AAAI, 2020. 5, 6, 7
+[4] Prafulla Dhariwal and Alexander Nichol. Diffusion models
+beat gans on image synthesis. In NeurIPS, 2021. 3, 5
+[5] Adji B Dieng, Yoon Kim, Alexander M Rush, and David M
+Blei. Avoiding latent variable collapse with generative skip
+models.
+In International Conference on Artificial Intelli-
+gence and Statistics, 2019. 2
+[6] Bin Ding, Chengjiang Long, Ling Zhang, and Chunxia Xiao.
+Argan: Attentive recurrent generative adversarial network
+for shadow detection and removal. In ICCV, 2019. 2
+[7] Graham D Finlayson, Subho S Chatterjee, and Brian V Funt.
+Color angular indexing. In ECCV, 1996. 3
+[8] Graham D Finlayson, Mark S Drew, and Cheng Lu. Entropy
+minimization for shadow removal. IJCV, 2009. 2
+[9] Graham D Finlayson, Steven D Hordley, Cheng Lu, and
+Mark S Drew.
+On the removal of shadows from images.
+IEEE TPAMI, 2005. 2
+[10] Hao Fu, Chunyuan Li, Xiaodong Liu, Jianfeng Gao, Asli Ce-
+likyilmaz, and Lawrence Carin. Cyclical annealing schedule:
+A simple approach to mitigating kl vanishing. arXiv preprint
+arXiv:1903.10145, 2019. 3, 5
+[11] Lan Fu, Changqing Zhou, Qing Guo, Felix Juefei-Xu,
+Hongkai Yu, Wei Feng, Yang Liu, and Song Wang. Auto-
+exposure fusion for single-image shadow removal. In CVPR,
+2021. 2, 6, 7
+[12] Brian V. Funt and Graham D. Finlayson.
+Color constant
+color indexing. IEEE TPAMI, 1995. 3
+[13] Lanqing Guo, Siyu Huang, Ding Liu, Hao Cheng, and Bihan
+Wen. Shadowformer: Global context helps image shadow
+removal. arXiv preprint arXiv:2302.01650, 2023. 2
+[14] Lanqing Guo, Chong Wang, Wenhan Yang, Siyu Huang,
+Yufei Wang, Hanspeter Pfister, and Bihan Wen. Shadowd-
+iffusion: When degradation prior meets diffusion model for
+shadow removal.
+In Proceedings of the IEEE/CVF Con-
+ference on Computer Vision and Pattern Recognition, pages
+14049–14058, 2023. 8
+[15] Ruiqi Guo, Qieyun Dai, and Derek Hoiem. Paired regions
+for shadow detection and removal. IEEE TPMAI, 2012. 2
+[16] Junxian He, Daniel Spokoyny, Graham Neubig, and Tay-
+lor Berg-Kirkpatrick. Lagging inference networks and pos-
+terior collapse in variational autoencoders. arXiv preprint
+arXiv:1901.05534, 2019. 2, 3, 5, 7
+[17] Jonathan Ho, Ajay Jain, and Pieter Abbeel. Denoising diffu-
+sion probabilistic models. NeurIPS, 2020. 1, 4
+[18] Jonathan Ho and Tim Salimans.
+Classifier-free diffusion
+guidance. arXiv preprint arXiv:2207.12598, 2022. 3
+[19] Yan Hong, Li Niu, and Jianfu Zhang. Shadow generation for
+composite image in real-world scenes. In AAAI, 2022. 6
+[20] Andrew Hou, Michel Sarkis, Ning Bi, Yiying Tong, and
+Xiaoming Liu. Face relighting with geometrically consis-
+tent shadows. In Proceedings of the IEEE/CVF Conference
+on Computer Vision and Pattern Recognition, pages 4217–
+4226, 2022. 1
+[21] Xiaowei Hu, Yitong Jiang, Chi-Wing Fu, and Pheng-Ann
+Heng. Mask-shadowgan: Learning to remove shadows from
+unpaired data. In ICCV, 2019. 2
+[22] Naoto Inoue and Toshihiko Yamasaki. Learning from syn-
+thetic shadows for shadow detection and removal.
+IEEE
+TCSVT, 2020. 6
+[23] Yeying Jin, Aashish Sharma, and Robby T Tan.
+Dc-
+shadownet:
+Single-image hard and soft shadow removal
+using unsupervised domain-classifier guided network.
+In
+ICCV, 2021. 2, 6, 7
+[24] Diederik P Kingma and Max Welling. Auto-encoding varia-
+tional bayes. arXiv preprint arXiv:1312.6114, 2013. 3
+[25] Hieu Le and Dimitris Samaras. Shadow removal via shadow
+image decomposition. In ICCV, 2019. 2, 5, 6
+[26] Hieu Le and Dimitris Samaras. From shadow segmentation
+to shadow removal. In ECCV, 2020. 2, 6
+[27] Zhihao Liu, Hui Yin, Xinyi Wu, Zhenyao Wu, Yang Mi, and
+Song Wang. From shadow generation to shadow removal. In
+CVPR, 2021. 2, 6, 7
+[28] Chengqiang Lu, Jianwei Zhang, Yunfei Chu, Zhengyu Chen,
+Jingren Zhou, Fei Wu, Haiqing Chen, and Hongxia Yang.
+Knowledge distillation of transformer-based language mod-
+els revisited. arXiv preprint arXiv:2206.14366, 2022. 8
+[29] Cheng Lu, Yuhao Zhou, Fan Bao, Jianfei Chen, Chongxuan
+Li, and Jun Zhu. Dpm-solver: A fast ode solver for diffu-
+sion probabilistic model sampling in around 10 steps. arXiv
+preprint arXiv:2206.00927, 2022. 8
+[30] Andreas Lugmayr, Martin Danelljan, Andres Romero, Fisher
+Yu, Radu Timofte, and Luc Van Gool. Repaint: Inpainting
+using denoising diffusion probabilistic models. In Proceed-
+ings of the IEEE/CVF Conference on Computer Vision and
+Pattern Recognition, pages 11461–11471, 2022. 2, 6
+[31] Haijian Ma, Qiming Qin, and Xinyi Shen. Shadow segmen-
+tation and compensation in high resolution satellite images.
+In IGARSS 2008-2008 IEEE International Geoscience and
+Remote Sensing Symposium, volume 2, pages II–1036, 2008.
+
+[32] Chenlin Meng, Yutong He, Yang Song, Jiaming Song, Jia-
+jun Wu, Jun-Yan Zhu, and Stefano Ermon. Sdedit: Guided
+image synthesis and editing with stochastic differential equa-
+tions. In International Conference on Learning Representa-
+tions, 2021. 2
+[33] Konpat Preechakul, Nattanat Chatthee, Suttisak Wizad-
+wongsa, and Supasorn Suwajanakorn.
+Diffusion autoen-
+coders: Toward a meaningful and decodable representation.
+In Proceedings of the IEEE/CVF Conference on Computer
+Vision and Pattern Recognition, pages 10619–10629, 2022.
+
+[34] Liangqiong Qu, Jiandong Tian, Shengfeng He, Yandong
+Tang, and Rynson WH Lau. Deshadownet: A multi-context
+embedding deep network for shadow removal.
+In CVPR,
+2017. 5
+
+[35] Aditya Ramesh, Prafulla Dhariwal, Alex Nichol, Casey Chu,
+and Mark Chen. Hierarchical text-conditional image gen-
+eration with clip latents. arXiv preprint arXiv:2204.06125,
+2022. 3
+[36] Robin Rombach, Andreas Blattmann, Dominik Lorenz,
+Patrick Esser, and Bj¨orn Ommer. High-resolution image syn-
+thesis with latent diffusion models. In CVPR, 2022. 1, 3
+[37] Chitwan Saharia, William Chan, Huiwen Chang, Chris Lee,
+Jonathan Ho, Tim Salimans, David Fleet, and Mohammad
+Norouzi.
+Palette: Image-to-image diffusion models.
+In
+ACM SIGGRAPH 2022 Conference Proceedings, pages 1–
+10, 2022. 2, 6
+[38] Chitwan Saharia, William Chan, Saurabh Saxena, Lala
+Li, Jay Whang, Emily Denton, Seyed Kamyar Seyed
+Ghasemipour,
+Burcu Karagol Ayan,
+S Sara Mahdavi,
+Rapha Gontijo Lopes, et al.
+Photorealistic text-to-image
+diffusion models with deep language understanding. arXiv
+preprint arXiv:2205.11487, 2022. 3
+[39] Chitwan Saharia, Jonathan Ho, William Chan, Tim Sali-
+mans, David J Fleet, and Mohammad Norouzi. Image super-
+resolution via iterative refinement. IEEE TPAMI, 2022. 1
+[40] Jascha Sohl-Dickstein, Eric Weiss, Niru Maheswaranathan,
+and Surya Ganguli.
+Deep unsupervised learning using
+nonequilibrium thermodynamics. In ICML, 2015. 1
+[41] Markus Andreas Stricker and Markus Orengo. Similarity of
+color images. In Storage and retrieval for image and video
+databases III, volume 2420, pages 381–392. SPiE, 1995. 3
+[42] Ilya Tolstikhin, Olivier Bousquet, Sylvain Gelly, and Bern-
+hard Schoelkopf. Wasserstein auto-encoders. arXiv preprint
+arXiv:1711.01558, 2017. 3, 5
+[43] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszko-
+reit, Llion Jones, Aidan N Gomez, Łukasz Kaiser, and Illia
+Polosukhin. Attention is all you need. In NeurIPS, 2017. 1
+[44] Jin Wan, Hui Yin, Zhenyao Wu, Xinyi Wu, Yanting Liu, and
+Song Wang. Style-guided shadow removal. In ECCV, 2022.
+2, 3, 4, 5, 6, 7, 8
+[45] Jin Wan, Hui Yin, Zhenyao Wu, Xinyi Wu, Zhihao Liu,
+and Song Wang. Crformer: A cross-region transformer for
+shadow removal. arXiv preprint arXiv:2207.01600, 2022. 2
+[46] Jifeng Wang, Xiang Li, and Jian Yang. Stacked conditional
+generative adversarial networks for jointly learning shadow
+detection and shadow removal. In CVPR, 2018. 5
+[47] Tianyu Wang, Xiaowei Hu, Qiong Wang, Pheng-Ann Heng,
+and Chi-Wing Fu.
+Instance shadow detection.
+In CVPR,
+2020. 6
+[48] Zichao Yang, Zhiting Hu, Ruslan Salakhutdinov, and Tay-
+lor Berg-Kirkpatrick. Improved variational autoencoders for
+text modeling using dilated convolutions. In International
+conference on machine learning, pages 3881–3890. PMLR,
+2017. 5
+[49] Edward Zhang, Ricardo Martin-Brualla, Janne Kontkanen,
+and Brian L Curless. No shadow left behind: Removing ob-
+jects and their shadows using approximate lighting and ge-
+ometry. In CVPR, 2021. 1
+[50] Ling Zhang,
+Chengjiang Long,
+Xiaolong Zhang,
+and
+Chunxia Xiao. Ris-gan: Explore residual and illumination
+with generative adversarial networks for shadow removal. In
+AAAI, 2020. 2
+[51] Wuming Zhang, Xi Zhao, Jean-Marie Morvan, and Liming
+Chen. Improving shadow suppression for illumination robust
+face recognition. IEEE TPAMI, 2018. 1
+[52] Shengjia Zhao, Jiaming Song, and Stefano Ermon. Infovae:
+Information maximizing variational autoencoders.
+arXiv
+preprint arXiv:1706.02262, 2017. 2
+[53] Yurui Zhu, Jie Huang, Xueyang Fu, Feng Zhao, Qibin Sun,
+and Zheng-Jun Zha. Bijective Mapping Network for Shadow
+Removal. In CVPR, 2022. 3, 4, 5, 6, 7, 8
+[54] Yurui Zhu, Zeyu Xiao, Yanchi Fang, Xueyang Fu, Zhiwei
+Xiong, and Zheng-Jun Zha. Efficient model-driven network
+for shadow removal. In AAAI, 2022. 6, 7

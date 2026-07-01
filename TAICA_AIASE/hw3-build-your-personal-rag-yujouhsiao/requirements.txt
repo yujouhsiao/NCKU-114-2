@@ -1,0 +1,16 @@
+# Python >= 3.10 required (developed with 3.11.9)
+
+# Vector DB
+chromadb==0.5.23
+
+# Embedding (local, free)
+sentence-transformers==3.0.1
+
+# PDF parsing
+pymupdf==1.24.10
+
+# LLM unified interface
+litellm==1.44.22
+
+# Utilities
+python-dotenv==1.0.1

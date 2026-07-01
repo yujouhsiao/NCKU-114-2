@@ -1,0 +1,1234 @@
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021
+
+DynRouteNet: Lightweight Facial Shadow Removal
+with Mask-Guided Dynamic Routing
+Yinghao Zeng, Xuhang Chen , Zimeng Li, Xiujun Zhang, Mengqian Wang, Yihang Dong, Xiaofeng Zhang,
+Chi-Man Pun, Kim-Fung Tsang, IEEE Fellow
+Abstract—Facial shadow removal is essential for consumer
+imaging devices, including smartphones, webcams, and smart
+home cameras, where varying illumination conditions signifi-
+cantly degrade image quality and the user experience. While deep
+learning approaches have shown promise, their computational
+demands limit deployment on resource-constrained consumer
+electronics. This paper presents DynRouteNet, a lightweight
+neural architecture specifically designed for real-time facial
+shadow removal in consumer devices. Our approach introduces
+two key innovations: (1) a dynamic routing mechanism that
+adaptively allocates computational resources based on shadow
+complexity, enabling efficient processing on mobile processors;
+and (2) the ScaleFuse MaskFlow operation that leverages multi-
+resolution shadow masks to preserve facial details while mini-
+mizing the memory footprint. Extensive experiments demonstrate
+that DynRouteNet achieves state-of-the-art shadow removal qual-
+ity with only 1.113M parameters, enabling real-time performance
+(<50 ms) on consumer-grade mobile processors. The proposed
+method maintains robust performance across diverse lighting
+conditions typical in consumer scenarios, from indoor selfies
+to outdoor video calls, while preserving facial identity with a
+structural similarity index of 0.947. The code is available at
+https://github.com/nicholasdezeng/DynRouteNet.
+Index Terms—Facial shadow removal, routing mechanism.
+I. INTRODUCTION
+This work was supported in part by Shenzhen Medical Research Fund
+(Grant No. A2503006), in part by the National Natural Science Founda-
+tion of China (Grant No. 62501412 and 62272313), in part by Shenzhen
+Polytechnic University Research Fund (Grant No. 6025310023K), in part
+by the Science and Technology Development Fund, Macau SAR, under
+Grant 0193/2023/RIA3 and 0079/2025/AFJ, in part by Guangdong Basic and
+Applied Basic Research Foundation (Grant No. 2024A1515140010) and in
+part by the Innovation and Entrepreneurship Training Program for College
+Students of Huizhou University “Deep Learning-based Auxiliary Algorithm
+for Robotic Cholecystectomy and Postoperative Report Generation” (Grant
+No. 1703250152).
+Yinghao Zeng and Xuhang Chen are with School of Computer Sci-
+ence and Engineering, Huizhou University, Huizhou 516007, China (e-mail:
+2314100736@stu.hzu.edu.cn, xuhangc@hzu.edu.cn).
+Zimeng Li and Xiujun Zhang are with School of Electronic and Com-
+munication Engineering, Shenzhen Polytechnic University, Shenzhen 518055,
+China (e-mail: li zimeng@szpu.edu.cn, zhangxiujun@szpu.edu.cn).
+Xuhang Chen and Chi-Man Pun are with Department of Computer and
+Information Science, University of Macau, Macau, SAR, China (e-mail:
+yc17491@connect.um.edu.mo, cmpun@umac.mo).
+Mengqian Wang is with Center for Excellence in Brain Science and
+Intelligence Technology, Chinese Academy of Sciences, Shanghai, China
+(email: wangmq@ion.ac.cn).
+Xiaofeng Zhang is with Center for Intelligent Wireless Network and Col-
+laborative Control, Shanghai Jiao Tong University, Shanghai, China. (email:
+framebreak@sjtu.edu.cn).
+Yihang Dong and Kim-Fung Tsang are with the Shenzhen Institutes of
+Advanced Technology, Chinese Academy of Sciences, Shenzhen 518055,
+China (e-mail: yh.dong@siat.ac.cn, kftsang@ieee.org).
+Xuhang Chen and Zimeng Li are the corresponding authors (email:
+xuhangc@hzu.edu.cn, li zimeng@szpu.edu.cn).
+S
+HADOW artifacts in digital imagery present significant
+challenges for consumer electronics applications, from
+smartphone cameras to smart home security systems. These
+visual phenomena, while contributing to natural scene per-
+ception, substantially degrade the performance of consumer-
+oriented computer vision applications, including facial au-
+thentication systems [1], smart surveillance [2], and real-time
+image enhancement [3], [4]. As consumer devices increas-
+ingly rely on robust image processing capabilities, developing
+efficient shadow removal techniques has become critical for
+enhancing user experience and device functionality.
+Traditional shadow removal approaches have employed
+predetermined strategies, including color model-based meth-
+ods [5], illumination ratio techniques [6], and texture con-
+sistency algorithms [7]. While suitable for specific consumer
+scenarios with controlled conditions, these methods often fail
+in everyday consumer environments characterized by complex
+indoor/outdoor lighting, dynamic shadow patterns, and varying
+capture conditions typical of mobile and IoT devices.
+The integration of deep learning [8]–[10] into consumer
+electronics has revolutionized shadow removal capabilities
+through end-to-end frameworks [11]–[14] that can learn from
+diverse consumer imaging datasets. These models lever-
+age non-linear feature extraction and specialized loss func-
+tions [15] to achieve superior performance. However, de-
+ployment in resource-constrained consumer devices faces sig-
+nificant challenges. Current deep learning approaches often
+lack the robustness required for diverse consumer imaging
+scenarios, from selfie cameras to home monitoring systems.
+Static feature extraction architectures struggle with the wide
+variety of shadow conditions encountered in daily use. Further-
+more, while attention mechanisms excel at capturing global
+dependencies, their computational demands often exceed the
+capabilities of consumer-grade processors. The superficial
+integration of shadow mask information in existing methods
+overlooks spatial cues crucial for maintaining image quality
+in consumer applications, potentially introducing artifacts that
+degrade user experience.
+To address these consumer electronics-specific challenges,
+we present DynRouteNet, a lightweight end-to-end frame-
+work optimized for efficient shadow removal in consumer
+devices. DynRouteNet adaptively processes diverse imaging
+conditions common in consumer applications, with particular
+emphasis on facial shadow removal—a critical feature for
+smartphone cameras, video conferencing systems, and biomet-
+ric authentication devices. Facial shadow removal in consumer
+electronics demands precise restoration of fine details (e.g.,
+This article has been accepted for publication in IEEE Transactions on Consumer Electronics. This is the author's version which has not been fully edited and 
+content may change prior to final publication. Citation information: DOI 10.1109/TCE.2025.3632210
+© 2025 IEEE. All rights reserved, including rights for text and data mining and training of artificial intelligence and similar technologies. Personal use is permitted,
+but republication/redistribution requires IEEE permission. See https://www.ieee.org/publications/rights/index.html for more information.
+Authorized licensed use limited to: National Cheng Kung Univ.. Downloaded on March 25,2026 at 09:11:59 UTC from IEEE Xplore.  Restrictions apply. 
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021
+
+skin texture [16], facial contours [17]) while maintaining real-
+time performance on mobile processors. These requirements
+pose unique challenges that conventional methods cannot
+adequately address. DynRouteNet employs a lightweight U-
+shaped architecture incorporating dynamic routing and mask-
+guided optimization, specifically engineered for deployment
+in resource-constrained consumer devices while maintaining
+high-fidelity results. Our extensive evaluations on consumer-
+relevant datasets demonstrate that DynRouteNet achieves su-
+perior shadow removal quality with computational efficiency
+suitable for real-time processing on consumer hardware.
+The primary contributions of this work are:
+• We introduce DynRouteNet, a consumer electronics-
+oriented facial shadow removal network featuring an
+innovative dynamic routing mechanism that balances
+restoration quality with the computational constraints of
+consumer devices.
+• We present a Dynamic Routing Mechanism that adap-
+tively selects processing pathways based on image
+content complexity, enabling efficient computation on
+resource-limited consumer hardware while maintaining
+high-quality results across diverse capture conditions.
+• We propose ScaleFuse MaskFlow, a computationally effi-
+cient multi-scale mask-guided strategy that systematically
+leverages downsampled shadow masks throughout the de-
+coding process. This approach preserves essential spatial
+information while minimizing memory footprint, making
+it ideal for integration into consumer imaging pipelines.
+II. RELATED WORK
+A. Shadow Removal
+Traditional approaches to shadow removal predominantly
+relied on hand-crafted visual features, principles of color
+consistency, or the explicit modeling of illumination char-
+acteristics. For instance, Tappen et al. [18] leveraged color
+invariance for the joint task of shadow detection and removal,
+whereas Guo et al. [19] proposed a method based on matching
+shadowed and non-shadowed regions identified via superpixel
+segmentation.
+The advent of deep learning has catalyzed substantial ad-
+vancements in shadow removal efficacy. ST-CGAN [20], for
+example, employed a conditional Generative Adversarial Net-
+work (GAN) for end-to-end shadow detection and subsequent
+removal. DHAN [21] integrated dual attention mechanisms to
+refine features pertinent to shadowed areas, thereby enhancing
+their distinctiveness. Addressing the common challenge of lim-
+ited paired training data, Mask-ShadowGAN [22] introduced
+an unsupervised framework leveraging adversarial training.
+Subsequent innovations, such as G2R-ShadowNet [23] focus-
+ing on region-wise transformations and SGShadowNet [24]
+incorporating style guidance, aimed to improve structural
+preservation and generalization capabilities. More recently,
+DMTN [25] explored feature decoupling for more targeted
+restoration, while TBRNet [26] utilized a three-branch archi-
+tecture to achieve more accurate shadow boundary delineation.
+RASM [27] further refined boundary details and textural
+consistency through the use of regional attention mechanisms
+and specifically tailored loss functions. DenseSR [28] reframes
+shadow removal as a dense prediction task, introducing a dense
+fusion block that combines adaptive smoothing and texture-
+boundary recuperation to simultaneously ensure illumination
+consistency and fine-detail recovery. Our proposed method
+distinguishes itself by achieving superior shadow removal
+performance compared to recent sophisticated approaches like
+RASM and DenseSR, notably with significantly reduced com-
+putational complexity.
+B. Facial Shadow Removal
+Facial shadow removal inherits many challenges from
+general-purpose shadow removal, such as the precise modeling
+of shadow transitions, the restoration of consistent illumina-
+tion across the face, and the faithful recovery of underlying
+textures. However, this task introduces additional complexities
+stemming from the perceptually sensitive nature of facial
+regions, where even minor artifacts or inconsistencies can
+significantly distort identity cues and compromise visual plau-
+sibility.
+Pioneering research in this specialized sub-domain includes
+explorations of dual neural network architectures [29], meth-
+ods that leverage estimations of internal facial illumination
+characteristics for removal [30], and various unsupervised
+techniques employing GANs [31]. CIRNet [32], for instance,
+utilized cross-modality attention mechanisms to foster syn-
+ergistic integration of color and illumination information.
+Concurrently, FSRNet [33] explored the utility of frequency
+domain fusion as a means to better differentiate subtle shadow
+edges from intrinsic facial structural details. Nevertheless,
+a prevalent limitation among many existing facial shadow
+removal techniques is their reliance on static processing
+pipelines. These static approaches often exhibit constrained
+adaptability when faced with the wide variability in facial
+morphology, diverse illumination conditions, and complex
+shadow configurations encountered in real-world imagery. Our
+proposed methodology is engineered to address the nuanced
+requirements of both general and facial shadow removal.
+It achieves this through a novel dynamic feature extraction
+paradigm, responsive to input-specific content and shadow
+mask statistics, the architectural details and operational prin-
+ciples of which are elaborated in the subsequent section.
+C. Dynamic Neural Networks
+Dynamic neural networks, as discussed in [34], adapt com-
+putation based on input characteristics to improve efficiency
+in tasks like image classification. Recent dynamic methods,
+such as [35], use adaptive routing to allow conflicting tasks
+to select different network paths, both in spatial and channel
+dimensions. Unlike these general-purpose approaches, we dy-
+namically route features using implicit statistics. DynRouteNet
+applies a mask-guided mechanism for facial shadow removal,
+where our DynamicBlock routes based on shadow masks to
+accurately detect shadow boundaries. This is a departure from
+static or single-scale methods (e.g., [27]), as our ScaleFuse
+MaskFlow improves adaptability, making DynRouteNet more
+effective in handling complex shadow patterns.
+This article has been accepted for publication in IEEE Transactions on Consumer Electronics. This is the author's version which has not been fully edited and 
+content may change prior to final publication. Citation information: DOI 10.1109/TCE.2025.3632210
+© 2025 IEEE. All rights reserved, including rights for text and data mining and training of artificial intelligence and similar technologies. Personal use is permitted,
+but republication/redistribution requires IEEE permission. See https://www.ieee.org/publications/rights/index.html for more information.
+Authorized licensed use limited to: National Cheng Kung Univ.. Downloaded on March 25,2026 at 09:11:59 UTC from IEEE Xplore.  Restrictions apply. 
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021
+
+III. METHODOLOGY
+DynamicBlock
+DynamicBlock
+DynamicBlock
+DynamicBlock
+DynamicBlock
+DynamicBlock
+DynamicBlock
+3×3 Conv
+C
+C
+C
+P
+P
+P
+3×3 Conv
+C
+R
+P
+C Concat
+ 
+Reshape 
+Downsample
+ 
+Pool2d
+Upsample
+ScaleFuse MaskFlow
+Fig. 1. The overview of DynRouteNet framework. DynRouteNet employs the
+ScaleFuse MaskFlow to process and reuse masks at different resolutions.
+This section details the architecture of our proposed Dyn-
+RouteNet and the formulation of the loss function. An
+overview of the DynRouteNet framework is provided in Fig. 1.
+A. Feature Extraction and Processing
+The feature extraction and processing module of Dyn-
+RouteNet forms the backbone of our facial image deshadowing
+framework, designed to address the limitations of traditional
+architectures like U-Net, which often struggle with complex
+shadow patterns due to their reliance on generic feature
+extraction without explicit shadow guidance. Our approach
+introduces three key innovations: (1) a mask reuse strategy
+to provide consistent shadow guidance across scales, (2)
+optimized multi-scale feature fusion (ScaleFuse MaskFlow) to
+integrate fine-grained and semantic features effectively, and (3)
+a residual output connection to preserve identity-critical con-
+tent. These components collectively enable DynRouteNet to
+achieve high-quality shadow removal with low computational
+cost, making it suitable for resource-constrained environments
+such as mobile devices.
+Given an RGB image I ∈R3×H×W and a single-channel
+shadow mask M ∈R1×H×W , we concatenate them to form
+a 4-channel input tensor X. This tensor is projected into a
+compact feature embedding F0 using a 3 × 3 convolution
+followed by LeakyReLU activation:
+F0 = LeakyReLU(Conv3×3(X)).
+(1)
+The choice of a compact 16-channel embedding reduces
+computational overhead compared to deeper embeddings in
+traditional U-Net models, enabling faster processing while re-
+taining sufficient representational capacity for shadow patterns.
+The encoder processes F0 through three stages, each com-
+prising DynamicBlock modules and a Downsample layer.
+Unlike standard convolutional encoders that treat all regions
+uniformly, our DynamicBlock modules leverage the shadow
+mask M to guide feature transformations adaptively, focusing
+computational resources on shadowed regions. This mask
+reuse strategy, termed ScaleFuse MaskFlow, downsamples the
+mask using max pooling to produce Mk ∈RB×1× H
+2k × W
+2k for
+scales k = 1, 2, 3, synchronized with feature downsampling:
+Mk+1 = MaxPool2d2×2(Mk).
+(2)
+This approach contrasts with methods like [36], which use
+static masks or implicit attention without multi-scale syn-
+chronization. By aligning masks with feature resolutions,
+ScaleFuse MaskFlow ensures precise shadow boundary detec-
+tion across scales, addressing the challenge of varying shadow
+sizes and intensities that prior methods often fail to handle
+effectively.
+Each Downsample layer applies a 4 × 4 convolution with
+stride 2, halving spatial resolution while doubling chan-
+nels to produce feature maps Fk+1. The synchronized mask
+Mk guides each DynamicBlock, enhancing focus on shadow
+boundaries and improving robustness to complex shadow
+patterns.
+The decoder mirrors the encoder, using Upsample layers
+and skip connections to implement ScaleFuse MaskFlow’s
+multi-scale fusion. Each Upsample layer applies a 2 × 2
+transposed convolution with stride 2, doubling resolution while
+halving channels. Skip connections concatenate upsampled
+features with encoder features at the same scale, enabling
+the integration of shallow, fine-grained details (e.g., textures)
+with deep, semantic features (e.g., facial structures). This
+fusion, guided by Mk, outperforms traditional U-Net skip
+connections, which lack explicit shadow guidance and often
+blur shadow boundaries during upsampling.
+The final feature map is processed by the OutputProj
+module, a 3 × 3 convolution producing the output image
+ˆI ∈R3×H×W . A residual connection adds the input image
+I to preserve non-shadowed content:
+ˆI = OutputProj(Ffinal) + I.
+(3)
+This residual connection, inspired by [37], ensures identity
+preservation in non-shadowed regions, a critical improve-
+ment over methods that may over-process unshadowed ar-
+eas, leading to artifacts. Compared to prior architectures,
+DynRouteNet’s mask-guided processing and efficient fusion
+achieve superior shadow removal.
+B. Dynamic Routing Mechanism
+DynRouteNet’s dynamic routing mechanism adapts feature
+processing to the unique characteristics of shadowed facial im-
+ages, preserving identity-critical features like textures and con-
+tours. Unlike static attention mechanisms or generic adaptive
+frameworks, which rely on implicit feature statistics and may
+overgeneralize across diverse shadow patterns, DynRouteNet
+explicitly uses synchronized shadow masks to guide feature
+transformations. This DynamicBlock module dynamically se-
+lects between a Channel Attention Block (CAB) [38] and
+a Separable Convolution (SepConv2d) [39] based on input
+features and mask characteristics, ensuring targeted refinement
+of shadowed regions.
+This article has been accepted for publication in IEEE Transactions on Consumer Electronics. This is the author's version which has not been fully edited and 
+content may change prior to final publication. Citation information: DOI 10.1109/TCE.2025.3632210
+© 2025 IEEE. All rights reserved, including rights for text and data mining and training of artificial intelligence and similar technologies. Personal use is permitted,
+but republication/redistribution requires IEEE permission. See https://www.ieee.org/publications/rights/index.html for more information.
+Authorized licensed use limited to: National Cheng Kung Univ.. Downloaded on March 25,2026 at 09:11:59 UTC from IEEE Xplore.  Restrictions apply. 
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021
+
+DynamicBlock
+R
+R
+R
+C
+M
+M
+P
+GELU
+Linear
+Softmax
+Conv
+R
+3×3 DW 
+Conv
+GELU
+1×1 
+Conv
+LN
+CAB
+R
+R
+R
+P
+C
+M
+Element-wise Addition
+Element-wise Multiplication
+Reshape
+Mean
+Pool2d 
+3×3 
+Conv
+PReLU
+3×3 
+Conv
+Adaptive
+AvgPool
+1×1 
+Conv
+1×1 
+Conv
+ReLU
+Sigmoid
+CAB
+Concatenate
+Fig. 2.
+DynamicBlock in DynRouteNet. DynamicBlock enables adaptive
+feature processing by selecting between channel attention and separable
+convolution paths, guided by multi-resolution shadow masks from ScaleFuse
+MaskFlow, ensuring precise and efficient shadow removal.
+For a feature map Fk
+∈
+RB×Ck×Hk×Wk at scale k
+(Hk = H/2k, Wk = W/2k) and a shadow mask Mk ∈
+RB×1×Hk×Wk, the routing mechanism computes a routing
+vector r ∈RB×(Ck+2) as:
+r =Concat(Mean(Fk), Mean(Mk),
+Mean(AvgPool2d3×3(Mk))).
+(4)
+This
+vector
+captures
+three
+complementary
+cues:
+(1)
+Mean(Fk) ∈RB×Ck provides global feature context by
+averaging over spatial dimensions, enabling the router to
+understand semantic content across channels, as in [37]; (2)
+Mean(Mk) ∈RB×1 quantifies shadow density, identifying
+regions requiring intensive refinement, similar to mask-guided
+restoration in [36]; and (3) Mean(AvgPool2d3×3(Mk)) ∈
+RB×1 approximates mask edge transitions, critical for refining
+shadow boundaries, inspired by edge-aware processing in [40].
+The routing vector r is processed by a two-layer MLP to
+produce path selection weights:
+ω = Softmax
+ Linear64→2
+ GELU
+ Linear(Ck+2)→64(r)
+
+,
+(5)
+where ω = [ω0, ω1] satisfies ω0 +ω1 = 1. The weights ω0 and
+ω1 determine the contribution of the CAB and SepConv2d
+paths, respectively. The CAB path, effective for edge refine-
+ment in dense shadow regions, is prioritized when Mean(Mk)
+is high, as channel-wise attention enhances boundary details.
+The SepConv2d path, optimized for efficient spatial process-
+ing, is favored in sparse shadow or edge-heavy regions, as indi-
+cated by low Mean(Mk) or high Mean(AvgPool2d3×3(Mk)).
+The DynamicBlock output is computed as:
+Fout = ω0 · CAB(Fk) + ω1 · SepConv2d(Fk),
+(6)
+followed by residual connection and normalization:
+Ffinal = LayerNorm(Fk) + DropPath(Fout).
+(7)
+This dual-path architecture, guided by explicit mask statistics,
+achieves a balance between precision and efficiency unattain-
+able by single-path models like [39] or attention-only models
+like [38]. For example, our experiments show that Dynamic
+Routing improves shadow boundary accuracy while reducing
+inference time, as shown in Table IV.
+By integrating ScaleFuse MaskFlow and Dynamic Routing,
+DynRouteNet addresses key limitations of prior deshadowing
+methods, such as poor handling of multi-scale shadow patterns
+and high computational overhead. These innovations enable
+state-of-the-art performance, with improved identity preserva-
+tion and efficiency.
+C. Loss Function Optimization
+The loss function of our DynRouteNet integrates three
+suited loss functions to advance facial shadow removal. We
+employ a composite loss that capitalizes on multi-scale shadow
+mask Mk, predicted image ˆI, ground truth I, and shadow
+mask M0; the following losses are combined to form a robust
+framework:
+1) Chaibonnier Loss: This loss ensures reliable pixel-wise
+reconstruction across the entire image, providing a stable
+foundation for the deshadowing process. It is defined as an
+average over all pixel components:
+LCharbonnire = 1
+N
+q
+|ˆI(i, j) −I(i, j)|2 + ϵ2,
+(8)
+where N = 3 · H · W, the loss uses a small ϵ = 10−3 to
+approximate L1 loss with differentiability. Its robustness to
+outliers makes it ideal for general image restoration, ensuring
+consistent recovery of facial textures (e.g., skin tones) under
+varying lighting conditions. Weighted implicitly at 1.0 in the
+total loss, it complements shadow-specific losses by maintain-
+ing overall image fidelity.
+2) MaskedL1 Loss: Tailored for shadow regions, this loss
+enhances precision where shadows obscure critical facial fea-
+tures. Its formulation is:
+LMaskedL1 = 1
+N
+q
+|M0(i, j) · (ˆI(i, j) −I(i, j))|2 + ϵ2, (9)
+where MaskL1 loss applies the shadow mask M0 to focus on
+shadow-affected pixels, using ϵ = 10−3 for numerical stability.
+Weighted at 0.5 in the total loss, it prioritizes accuracy in
+shadowed areas (e.g., eyes, mouth), synergizing with the multi-
+scale masks Mk. This targeted approach ensures identity-
+critical details are preserved, distinguishing it from uniform
+losses.
+3) Perceptual Loss: The specified loss function facilitates
+structural coherence by evaluating high-level features derived
+from MobileNetV2, thereby preserving natural facial contours.
+The mathematical representation of this loss function is given
+by:
+LP erceptual =
+X
+l∈{2,4,7,10}
+ωl · ||ϕl(ˆI) −ϕl(I)||1,
+(10)
+where ω = [0.1, 0.2, 0.3, 0.4], and l denotes layers 2, 4, 7, and
+10 of the MobileNetV2 architecture.
+This article has been accepted for publication in IEEE Transactions on Consumer Electronics. This is the author's version which has not been fully edited and 
+content may change prior to final publication. Citation information: DOI 10.1109/TCE.2025.3632210
+© 2025 IEEE. All rights reserved, including rights for text and data mining and training of artificial intelligence and similar technologies. Personal use is permitted,
+but republication/redistribution requires IEEE permission. See https://www.ieee.org/publications/rights/index.html for more information.
+Authorized licensed use limited to: National Cheng Kung Univ.. Downloaded on March 25,2026 at 09:11:59 UTC from IEEE Xplore.  Restrictions apply. 
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021
+
+As implemented in Perceptual Loss, images are normalized
+using MeanShift before feature extraction at layers 2, 4, 7, and
+10, with weights ωl balancing their contributions. Weighted
+at 0.01 in the total loss, it captures semantic similarities,
+preventing distortions in facial structure. Unlike VGG-based
+losses, MobileNetV2’s efficiency aligns with compact embed-
+ding, supporting real-time performance.
+4) Total Vatiation Loss: Designed to enhance visual clarity,
+this loss minimizes artifacts in smooth facial regions by
+promoting spatial smoothness. Its formulation is:
+Ltv = 2 · 10−4
+B
+(
+P
+i,j |ˆI(i + 1, ja) −ˆI(i, j)|2
+counth
++
+P
+i,j |ˆI(i, j + 1) −ˆI(i, j)|2
+countω
+),
+(11)
+where counth = 3 · (H −1) · W, countω
+= 3 · H ·
+(W −1), B is the batch size. Implemented in Ltv with
+weighted = 1e −4, this subtle regularization reduces noise
+in areas like skin, complementing the residual connection
+ˆI = OutputProj(Ffinal)+I . Its low weight ensures minimal
+impact on edges, preserving facial details.
+IV. EXPERIMENT
+A. Dataset
+The performance of our proposed method is evaluated
+on two publicly available facial shadow removal datasets:
+SHAREL [1] and UCB [29]. From the SHAREL dataset,
+1026 shadow/shadow-free image pairs were selected, while the
+UCB dataset contributed 100 such pairs for our experiments.
+To evaluate model adaptability to varying image dimensions,
+images from the SHAREL dataset were resized to 128 × 128
+pixels prior to training, whereas images from the UCB dataset
+were resized to 256×256 pixels. The datasets were partitioned
+into training and testing sets using distinct ratios: SHAREL
+was split with 90% for training and 10% for testing, while
+UCB utilized a 70% training and 30% testing split. For
+the UCB dataset, shadow masks were generated using the
+preprocessing methodology described in [41].
+B. Implementation Details
+The proposed model was implemented using PyTorch and
+trained on a single NVIDIA RTX 3060 GPU. Optimization
+was performed using the AdamW optimizer [42] with an initial
+learning rate of 4×10−4 and a batch size of 8. The momentum
+parameters (β1, β2) were set to (0.9, 0.999), and weight decay
+was configured to 2 × 10−2. To enhance training robustness
+and prevent overfitting, standard data augmentation techniques
+were applied, including random rotations, horizontal flips,
+channel permutations, and MixUp [43].
+To comprehensively evaluate model performance, we em-
+ployed several standard metrics. Pixel-level accuracy and per-
+ceptual quality were assessed using Root Mean Square Error
+(RMSE), Peak Signal-to-Noise Ratio (PSNR), and Structural
+Similarity (SSIM). Feature-level perceptual similarity was
+measured using the Learned Perceptual Image Patch Similarity
+(LPIPS) [44]. Computational cost and model complexity were
+quantified by the number of Multiply-Accumulate Operations
+(MACs) and parameters, respectively. This suite of metrics
+facilitates a balanced and comprehensive evaluation of both
+the effectiveness and efficiency of the compared methods.
+C. Experiments Comparison
+We conduct a comprehensive comparative analysis of
+DynRouteNet against several state-of-the-art shadow removal
+methods on both the SHAREL and UCB datasets. The
+approaches included in this comparison are RASM [27],
+MaskShadowGAN
+[22],
+ST-CGAN
+[20],
+DHAN
+[21],
+DMTN [25], TBRNet [26], G2RShadowNet [23], SGShad-
+owNet [24], FSRNet [33], CIRNet [32] and DenseSR [28]. A
+qualitative visual comparison, presented in Fig. 3, illustrates
+the superior shadow removal capabilities of DynRouteNet and
+highlights the effectiveness of its components when bench-
+marked against these leading techniques.
+Quantitative evaluations are performed using Root Mean
+Square Error (RMSE), Peak Signal-to-Noise Ratio (PSNR),
+Structural Similarity (SSIM), and Learned Perceptual Im-
+age Patch Similarity (LPIPS) to assess restoration quality.
+Computational efficiency and model complexity are gauged
+by Multiply-Accumulate Operations (MACs) and the total
+number of parameters. As detailed in Table I, DynRouteNet
+demonstrates superior performance across the majority of
+these metrics, particularly excelling in PSNR and SSIM, while
+concurrently maintaining a lightweight architectural design.
+For instance, regarding LPIPS, our model achieves a com-
+petitive score, with RASM performing only slightly inferior.
+Despite its compact architecture, DynRouteNet consistently
+delivers performance that is either on par with or superior
+to existing methods, underscoring its suitability for real-
+world applications where both high accuracy and operational
+efficiency are paramount.
+D. User Study
+Deep learning-based shadow removal methods are typi-
+cally evaluated using objective metrics such as PSNR, SSIM,
+LPIPS, and RMSE, which primarily assess image quality
+based on pixel-level differences. However, these metrics are
+inherently limited in their ability to reflect human visual per-
+ception. Although they provide useful quantitative indicators,
+they often fail to capture critical perceptual factors such as
+detail preservation, color fidelity, visual realism, and overall
+image quality from the viewer’s perspective.
+To address these limitations, we conducted a comprehensive
+user study designed to complement the objective evaluations,
+thereby offering a more holistic assessment of the visual
+performance of various shadow removal methods. This user
+study aims to collect direct, subjective feedback from human
+observers regarding the perceived effectiveness, naturalness,
+and visual quality of the de-shadowed results in practical, real-
+world scenarios.
+A diverse set of images was randomly selected from the
+SHAREL [1] dataset to ensure variability in scene content,
+lighting conditions, and shadow characteristics. Specifically,
+15 groups of images were chosen, covering a broad range
+This article has been accepted for publication in IEEE Transactions on Consumer Electronics. This is the author's version which has not been fully edited and 
+content may change prior to final publication. Citation information: DOI 10.1109/TCE.2025.3632210
+© 2025 IEEE. All rights reserved, including rights for text and data mining and training of artificial intelligence and similar technologies. Personal use is permitted,
+but republication/redistribution requires IEEE permission. See https://www.ieee.org/publications/rights/index.html for more information.
+Authorized licensed use limited to: National Cheng Kung Univ.. Downloaded on March 25,2026 at 09:11:59 UTC from IEEE Xplore.  Restrictions apply. 
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021
+
+Input
+DenseSR
+RASM
+ST-CGAN
+MaskShadowGAN
+DHAN
+TBRNet
+DMTN
+G2RShadowNet
+SGShadwowGAN
+FSRNet
+CIRNet
+Ours
+Ground Truth
+Fig. 3.
+Visual comparison our model against the SOTA method in SHAREL (Upper) and UCB (Lower) dataset, to highlight the ability of our model to
+remove shadows from human faces while preserving the original image’s color, details and texture.
+TABLE I
+QUANTITATIVE EVALUATION OF OUR MODEL AND OTHER SOTA METHODS ON SHAREL [1] AND UCB [29] DATSETS.
+Methods
+SHAREL
+UCB
+PSNR ↑
+SSIM ↑
+RMSE ↓
+LPIPS ↓
+MACs ↓
+PSNR ↑
+SSIM ↑
+RMSE ↓
+LPIPS ↓
+MACs ↓
+Params (M) ↓
+RASM
+40.49
+0.9853
+2.5010
+0.0070
+6.672
+24.79
+0.7873
+15.1348
+0.0072
+26.328
+5.156
+ST-CGAN
+29.24
+0.9273
+9.6532
+0.0396
+4.206
+22.26
+0.6933
+19.9783
+0.1969
+16.825
+42.356
+MaskShadowGAN
+26.15
+0.9297
+12.9951
+0.0417
+14.267
+23.01
+0.7895
+18.4287
+0.1073
+57.070
+11.381
+DHAN
+26.15
+0.9297
+12.9951
+0.0471
+30.274
+20.46
+0.7638
+24.6302
+0.1244
+121.097
+16.357
+DMTN
+21.11
+0.8564
+23.5279
+0.0799
+29.364
+20.56
+0.7433
+24.3861
+0.1247
+117.453
+22.423
+TBRNet
+19.14
+0.8106
+30.6886
+0.0917
+90.487
+22.69
+0.7641
+19.1557
+0.0932
+361.892
+46.712
+G2R-ShadowNet
+25.66
+0.9223
+13.7772
+0.0516
+14.267
+23.88
+0.8017
+16.7582
+0.0881
+57.070
+11.381
+SG-ShadowNet
+24.64
+0.9245
+15.7916
+0.0313
+5.032
+24.72
+0.8058
+15.1739
+0.0862
+20.130
+4.130
+FSRNet
+30.76
+0.9552
+8.3353
+0.0203
+167.633
+23.80
+0.7995
+16.9756
+0.0887
+430.532
+167.605
+CIRNet
+24.87
+0.9005
+15.2856
+0.0440
+116.037
+22.38
+0.7727
+19.7071
+0.0981
+464.149
+31.898
+DenseSR
+41.77
+0.9928
+2.3275
+0.0033
+20.282
+25.14
+0.8072
+14.6970
+0.1128
+81.172
+24.698
+DynRouteNet
+43.59
+0.9930
+1.7545
+0.0028
+1.601
+26.34
+0.8131
+12.9203
+0.0778
+6.404
+1.113
+of challenging cases for shadow removal. Seven different
+models were evaluated, allowing for extensive cross-method
+comparison. The user study questionnaire was meticulously
+designed, as summarized in Table II, to guide participants in
+providing consistent and meaningful evaluations.
+To ensure the reliability and representativeness of the user
+study results, we invited 20 participants with diverse back-
+grounds, including both computer vision researchers and non-
+expert students. This mixture of expertise levels helps to
+balance technical rigor with general perceptual judgment. For
+each image group, participants were instructed to assess the
+results according to four well-defined criteria:
+• Image authenticity Evaluates the naturalness and realism
+of the de-shadowed image, ensuring no visual artifacts or
+inconsistencies are introduced.
+• Color accuracy Measures how accurately the colors are
+preserved or restored after shadow removal, preventing
+color distortion or unnatural tones.
+• Overall clarity Assesses the sharpness and preservation
+of fine details, textures, and edges in the output image.
+• Removal quality Focuses on the effectiveness of shadow
+removal, determining whether shadows are completely
+and cleanly eliminated without leaving residues or caus-
+ing new artifacts.
+To ensure the anonymity of the evaluation process, the
+positions of the images in each group were randomly shuf-
+fled to prevent any potential ordering bias. Participants were
+instructed to select the best-performing image for each eval-
+This article has been accepted for publication in IEEE Transactions on Consumer Electronics. This is the author's version which has not been fully edited and 
+content may change prior to final publication. Citation information: DOI 10.1109/TCE.2025.3632210
+© 2025 IEEE. All rights reserved, including rights for text and data mining and training of artificial intelligence and similar technologies. Personal use is permitted,
+but republication/redistribution requires IEEE permission. See https://www.ieee.org/publications/rights/index.html for more information.
+Authorized licensed use limited to: National Cheng Kung Univ.. Downloaded on March 25,2026 at 09:11:59 UTC from IEEE Xplore.  Restrictions apply. 
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021
+
+TABLE II
+COMPARISON OF USER STUDY SCORES WITH OTHER 7 METHODS ACROSS MULTIPLE EVALUATION METRICS
+Methods
+Image authenticity ↑
+Color accuracy ↑
+Overall clarity ↑
+Removal quality ↑
+Average score ↑
+CIRNet
+0.1
+0.15
+0.1
+0.15
+0.125
+DHAN
+
+FSRNet
+
+G2-RShadowNet
+
+0.05
+
+0.0125
+MaskShadowGAN
+
+0.05
+
+0.05
+0.025
+RASM
+0.15
+0.15
+0.15
+0.2
+0.1625
+ST-CGAN
+0.15
+0.15
+0.15
+0.15
+0.15
+Ours
+0.6
+0.5
+0.55
+0.45
+0.525
+TABLE III
+EXPERIMENTS FOR EVALUATING THE IMPACT OF SCALEFUSE MASKFLOW, ROUTING MECHANISM, CAB AND SEP2D, DEMONSTRATING THEIR
+CRITICAL ROLE IN ACHIEVING PRECISE FACIAL SHADOW REMOVAL IN SHAREL AND UCB DATASETS
+Model Variant
+SHAREL
+UCB
+Params(M)
+PSNR ↑
+SSIM ↑
+RMSE ↓
+LPIPS ↓
+MACs(G) ↓
+PSNR ↑
+SSIM ↑
+RMSE ↓
+LPIPS ↓
+MACs(G) ↓
+↓
+WoScaleFuseMaskFlow
+43.21
+0.9926
+1.8503
+0.0029
+1.601
+26.22
+0.8113
+13.0290
+0.0790
+6.404
+1.112
+WoRouteMechanism
+43.50
+0.9926
+1.7757
+0.0028
+1.601
+26.26
+0.8113
+13.0462
+0.0772
+6.404
+1.081
+WoSep2d
+43.41
+0.9928
+1.8022
+0.0028
+1.521
+26.27
+0.8124
+13.0196
+0.0756
+6.085
+1.033
+WoCAB
+39.30
+0.9840
+2.8889
+0.0102
+0.369
+25.76
+0.8048
+13.8065
+0.0780
+1.510
+0.270
+DynRouteNet
+43.59
+0.9930
+1.7543
+0.0028
+1.601
+26.34
+0.8131
+12.9203
+0.0778
+6.404
+1.113
+uation criterion within each group, assigning it a score of 1.
+The average score of each model was then calculated across
+15 groups for each of the four evaluation criteria. Finally,
+the overall score for each model was obtained by averaging
+the scores across all four criteria, providing a comprehensive
+indicator of its visual performance.
+To guarantee fairness and consistency, participants were
+explicitly required to carefully assess all images according
+to the defined evaluation criteria and to select the image that
+demonstrated the best performance in each group without prior
+knowledge of the corresponding method. This method guaran-
+tees a fair and holistic assessment of the overall performance
+of each shadow removal result.
+Furthermore, by involving a diverse group of evaluators and
+ensuring a randomized presentation of results, the evaluation
+process reduces the risk of subjective bias and increases the
+reliability and generalizability of the conclusions drawn from
+the user study.
+E. Ablation Study
+To meticulously evaluate the contribution of each key com-
+ponent within our proposed DynRouteNet, we conducted a
+series of ablation experiments on both the SHAREL and UCB
+datasets. The results of this study are summarized in Table III.
+The experiments demonstrate that removing either the
+ScaleFuse MaskFlow module or disabling the adaptive nature
+of the Dynamic Routing Mechanism leads to a significant
+decline in performance across all six evaluated metrics. Specif-
+ically, to isolate the contribution of the adaptive path selection
+in the Dynamic Routing Mechanism, its routing weights were
+fixed to uniform values during its ablation. The substantial per-
+formance degradation observed in both of these configurations
+underscores the critical role these modules play in achieving
+effective shadow removal and high-fidelity image restoration.
+Further component analysis within DynRouteNet examined
+the individual effects of removing the Channel Attention
+Block (CAB) and the Separable Convolution (SepConv2d)
+module, which form the two dynamically selected paths within
+each DynamicBlock. Ablating the CAB module resulted in
+a marked drop in performance across the board. Conversely,
+when the SepConv2d module was removed, a slight improve-
+ment was observed in the LPIPS metric on the UCB dataset;
+however, other metrics exhibited varying degrees of decline.
+This finding suggests that while the SepConv2d module is a
+key contributor to the model’s computational efficiency, its
+presence also generally aids overall performance, indicating a
+carefully considered trade-off in its integration.
+Overall, this comprehensive ablation study validates the
+individual effectiveness of each core module integrated into
+DynRouteNet and confirms that the complete architecture,
+with all components functioning synergistically, is essential
+for attaining optimal performance.
+TABLE IV
+COMPARISON OF TWO MODEL IN THE ANDROID TESTING
+Model
+Mean Latency(ms) ↓
+95th percentile latency (ms) ↓
+throughput(img/s) ↑
+RASM
+107.48
+109.45
+9.30
+DynRouteNet(ours)
+40.54
+41.75
+24.66
+F. Efficiency Analysis
+We comprehensively considered the MACs and SSIM of
+the comparison models and selected RASM [27] and Dyn-
+RouteNet for evaluation, which were run on on a Android
+device (ASUS Zenfone 10, Qualcomm Snapdragon 8gen2,
+16 GB RAM, Android 15). Both models were tested with
+a random input tensor of size, representing a single 128x128
+RGB image. The test included 20 warm-up iterations followed
+by 200 inference runs for each model. The evaluation indica-
+tors mean latency represents the average time taken for the
+model to process a single input, 95th percentile latency (p95)
+indicates the time below which 95% of the inference times
+This article has been accepted for publication in IEEE Transactions on Consumer Electronics. This is the author's version which has not been fully edited and 
+content may change prior to final publication. Citation information: DOI 10.1109/TCE.2025.3632210
+© 2025 IEEE. All rights reserved, including rights for text and data mining and training of artificial intelligence and similar technologies. Personal use is permitted,
+but republication/redistribution requires IEEE permission. See https://www.ieee.org/publications/rights/index.html for more information.
+Authorized licensed use limited to: National Cheng Kung Univ.. Downloaded on March 25,2026 at 09:11:59 UTC from IEEE Xplore.  Restrictions apply. 
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021
+
+fall, providing insight into the model’s performance under
+worst-case scenarios and helping to assess tail latency, and
+throughput measured in images per second (img/s), quantifies
+how many images the model can process in one second.
+These metrics are crucial for evaluating the trade-offs between
+speed and quality in mobile deployment, and the results are
+summarized in Table IV.
+V. CONCLUSION
+In this paper, we introduced DynRouteNet, a lightweight
+and efficient network specifically designed for facial shadow
+removal. DynRouteNet uniquely incorporates a dynamic rout-
+ing mechanism that adaptively selects optimal processing
+pathways based on input content, complemented by the novel
+ScaleFuse MaskFlow strategy. This synergistic design enables
+accurate restoration of shadow-affected facial regions while
+maintaining a low computational footprint. Comprehensive
+experimental evaluations on benchmark facial shadow removal
+datasets have demonstrated that DynRouteNet surpasses exist-
+ing state-of-the-art methods, achieving superior performance
+across key metrics with significantly fewer parameters and
+lower MACs. These results underscore the efficacy of our
+approach in balancing high-fidelity shadow removal with com-
+putational efficiency.
+REFERENCES
+[1] L. Fu, Q. Guo, F. Juefei-Xu, H. Yu, W. Feng, Y. Liu, and S. Wang,
+“Benchmarking shadow removal for facial landmark detection and
+beyond,” arXiv, 2021.
+[2] S. J. Nam and N. Kehtarnavaz, “Flash shadow detection and removal
+in stereo photography,” IEEE Transactions on Consumer Electronics,
+vol. 58, no. 2, pp. 205–211, 2012.
+[3] H. Le, T. F. Y. Vicente, V. Nguyen, M. Hoai, and D. Samaras, “A+ d
+net: Training a shadow detector with adversarial shadow attenuation,”
+in ECCV, 2018, pp. 662–678.
+[4] H. Yang, O.-H. Choung, and Y. Ban, “Shadow removal for enhanced
+nighttime driving scene generation.” Applied Sciences, vol. 14, no. 23,
+pp. 2076–3417, 2024.
+[5] G. D. Finlayson, S. D. Hordley, C. Lu, and M. S. Drew, “On the removal
+of shadows from images,” TPAMI, vol. 28, no. 1, pp. 59–68, 2005.
+[6] R. Guo, Q. Dai, and D. Hoiem, “Paired regions for shadow detection
+and removal,” TPAMI, vol. 35, no. 12, pp. 2956–2967, 2012.
+[7] F. Liu and M. Gleicher, “Texture-consistent shadow removal,” in ECCV,
+2008, pp. 437–450.
+[8] H. Li, W. Liu, J. Liu, Z. Tang, C.-M. Pun, Q. Miao, F. Xu, and
+H. Gao, “Motionrefinenet: Fine-grained pose sequence smoothing and
+refinement,” in ACM MM, 2025, pp. 5–14.
+[9] H. Li and C.-M. Pun, “Cee-net: complementary end-to-end network for
+3d human pose generation and estimation,” in AAAI, vol. 37, no. 1, 2023,
+pp. 1305–1313.
+[10] ——, “Monocular robust 3d human localization by global and body-
+parts depth awareness,” TCSVT, vol. 32, no. 11, pp. 7692–7705, 2022.
+[11] L. Guo, C. Wang, Y. Wang, Y. Yu, S. Huang, W. Yang, A. C. Kot,
+and B. Wen, “Single-image shadow removal using deep learning: A
+comprehensive survey,” arXiv, 2024.
+[12] B. Ding, C. Long, L. Zhang, and C. Xiao, “Argan: Attentive recurrent
+generative adversarial network for shadow detection and removal,” in
+ICCV, 2019, pp. 10 213–10 222.
+[13] Y. Jin, A. Sharma, and R. T. Tan, “Dc-shadownet: Single-image hard
+and soft shadow removal using unsupervised domain-classifier guided
+network,” in ICCV, 2021, pp. 5027–5036.
+[14] Q. Bao, Y. Liu, B. Gang, W. Yang, and Q. Liao, “S 2 net: Shadow
+mask-based semantic-aware network for single-image shadow removal,”
+IEEE Transactions on Consumer Electronics, vol. 68, no. 3, pp. 209–
+220, 2022.
+[15] S. Kang, J. Kim, I. S. Jang, and B.-D. Lee, “C2shadowgan: cycle-in-
+cycle generative adversarial network for shadow removal using unpaired
+data,” Applied Intelligence, vol. 53, no. 12, pp. 15 067–15 079, 2023.
+[16] B. Zafarifar, T. van den Kerkhof, and P. H. de With, “Texture-adaptive
+skin detection for tv and its real-time implementation on dsp and fpga,”
+IEEE Transactions on Consumer Electronics, vol. 58, no. 1, pp. 161–
+169, 2012.
+[17] W.-Y. Hsu and T.-H. Chiang, “Triple-attribute perceptron facial expres-
+sion recognition in real-world environments,” IEEE Transactions on
+Consumer Electronics, vol. 71, no. 1, pp. 608–620, 2025.
+[18] M. Tappen, W. Freeman, and E. Adelson, “Recovering intrinsic images
+from a single image,” NeurIPS, vol. 15, 2002.
+[19] R. Guo, Q. Dai, and D. Hoiem, “Single-image shadow detection and
+removal using paired regions,” in CVPR, 2011, pp. 2033–2040.
+[20] J. Wang, X. Li, and J. Yang, “Stacked conditional generative adversarial
+networks for jointly learning shadow detection and shadow removal,” in
+CVPR, 2018, pp. 1788–1797.
+[21] X. Cun, C.-M. Pun, and C. Shi, “Towards ghost-free shadow removal
+via dual hierarchical aggregation network and shadow matting gan,” in
+AAAI, vol. 34, no. 07, 2020, pp. 10 680–10 687.
+[22] X. Hu, Y. Jiang, C.-W. Fu, and P.-A. Heng, “Mask-shadowgan: Learning
+to remove shadows from unpaired data,” in ICCV, 2019, pp. 2472–2481.
+[23] Z. Liu, H. Yin, X. Wu, Z. Wu, Y. Mi, and S. Wang, “From shadow
+generation to shadow removal,” in CVPR, 2021, pp. 4927–4936.
+[24] J. Wan, H. Yin, Z. Wu, X. Wu, Y. Liu, and S. Wang, “Style-guided
+shadow removal,” in ECCV, 2022, pp. 361–378.
+[25] J. Liu, Q. Wang, H. Fan, W. Li, L. Qu, and Y. Tang, “A decoupled multi-
+task network for shadow removal,” TMM, vol. 25, pp. 9449–9463, 2023.
+[26] J. Liu, Q. Wang, H. Fan, J. Tian, and Y. Tang, “A shadow imaging
+bilinear model and three-branch residual network for shadow removal,”
+TNNLS, 2023.
+[27] H. Liu, M. Li, and X. Guo, “Regional attention for shadow removal,”
+in ACM MM, 2024, pp. 5949–5957.
+[28] Y.-F. Lin, C.-M. Lee, and C.-C. Hsu, “Densesr: Image shadow removal
+as dense prediction,” arXiv, 2025.
+[29] X. Zhang, J. T. Barron, Y.-T. Tsai, R. Pandey, X. Zhang, R. Ng, and
+D. E. Jacobs, “Portrait shadow manipulation,” TOG, vol. 39, no. 4, pp.
+78–1, 2020.
+[30] Q. Huang, C. Xu, G. Li, Z. Wu, S. Liu, and S. He, “Portrait shadow
+removal via self-exemplar illumination equalization,” in ACM MM, 2024,
+pp. 7474–7482.
+[31] Y. He, Y. Xing, T. Zhang, and Q. Chen, “Unsupervised portrait shadow
+removal via generative priors,” in ACM MM, 2021, pp. 236–244.
+[32] R. Cong, Q. Lin, C. Zhang, C. Li, X. Cao, Q. Huang, and Y. Zhao, “Cir-
+net: Cross-modality interaction and refinement for rgb-d salient object
+detection,” TIP, vol. 31, pp. 6800–6815, 2022.
+[33] J. Yu, P. He, and Z. Peng, “Fsr-net: Deep fourier network for shadow
+removal,” in ACM MM, 2023, pp. 2335–2343.
+[34] Y. Han, G. Huang, S. Song, L. Yang, H. Wang, and Y. Wang, “Dynamic
+neural networks: A survey,” IEEE transactions on pattern analysis and
+machine intelligence, vol. 44, no. 11, pp. 7436–7456, 2021.
+[35] Z. Yang, H. Chen, Z. Qian, Y. Yi, H. Zhang, D. Zhao, B. Wei, and Y. Xu,
+“All-in-one medical image restoration via task-adaptive routing,” in
+International Conference on Medical Image Computing and Computer-
+Assisted Intervention.
+Springer, 2024, pp. 67–77.
+[36] X. Wang, K. Yu, S. Wu, J. Gu, Y. Liu, C. Dong, Y. Qiao, and
+C. Change Loy, “Esrgan: Enhanced super-resolution generative adver-
+sarial networks,” in ECCV workshops, 2018, pp. 0–0.
+[37] K. He, X. Zhang, S. Ren, and J. Sun, “Deep residual learning for image
+recognition,” in CVPR, 2016, pp. 770–778.
+[38] M.-H. Guo, T.-X. Xu, J.-J. Liu, Z.-N. Liu, P.-T. Jiang, T.-J. Mu, S.-
+H. Zhang, R. R. Martin, M.-M. Cheng, and S.-M. Hu, “Attention
+mechanisms in computer vision: A survey,” Computational visual media,
+vol. 8, no. 3, pp. 331–368, 2022.
+[39] F. Chollet, “Xception: Deep learning with depthwise separable convo-
+lutions,” in CVPR, 2017, pp. 1251–1258.
+[40] C. Szegedy, W. Liu, Y. Jia, P. Sermanet, S. Reed, D. Anguelov, D. Erhan,
+V. Vanhoucke, and A. Rabinovich, “Going deeper with convolutions,”
+in CVPR, 2015, pp. 1–9.
+[41] L. Fu, C. Zhou, Q. Guo, F. Juefei-Xu, H. Yu, W. Feng, Y. Liu, and
+S. Wang, “Auto-exposure fusion for single-image shadow removal,” in
+CVPR, 2021.
+[42] I. Loshchilov and F. Hutter, “Decoupled weight decay regularization,”
+arXiv preprint arXiv:1711.05101, 2017.
+[43] H. Zhang, M. Cisse, Y. N. Dauphin, and D. Lopez-Paz, “mixup: Beyond
+empirical risk minimization,” arXix, 2017.
+[44] R. Zhang, P. Isola, A. A. Efros, E. Shechtman, and O. Wang, “The
+unreasonable effectiveness of deep features as a perceptual metric,” in
+CVPR, 2018, pp. 586–595.
+This article has been accepted for publication in IEEE Transactions on Consumer Electronics. This is the author's version which has not been fully edited and 
+content may change prior to final publication. Citation information: DOI 10.1109/TCE.2025.3632210
+© 2025 IEEE. All rights reserved, including rights for text and data mining and training of artificial intelligence and similar technologies. Personal use is permitted,
+but republication/redistribution requires IEEE permission. See https://www.ieee.org/publications/rights/index.html for more information.
+Authorized licensed use limited to: National Cheng Kung Univ.. Downloaded on March 25,2026 at 09:11:59 UTC from IEEE Xplore.  Restrictions apply.

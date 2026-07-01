@@ -1,0 +1,3839 @@
+Single-Image Shadow Removal Using Deep Learning: A
+Comprehensive Survey
+Lanqing Guo1, Chong Wang1, Yufei Wang1, Yi Yu1, Siyu Huang2,
+Wenhan Yang3, Alex C. Kot1, Bihan Wen1*
+1ROSE Lab, Nanyang Technological University, 50 Nanyang Ave, 639798, Singapore.
+2Visual Computing Division, School of Computing, Clemson University, SC 29631,
+Clemson, USA.
+3Pengcheng Laboratory, No. 2, Xingke 1st Street, Shenzhen, 518066, China.
+*Corresponding author(s). E-mail(s): bihan.wen@ntu.edu.sg;
+Contributing authors: lanqing001@ntu.edu.sg; wang1711@ntu.edu.sg; yufei001@ntu.edu.sg;
+yuyi0010@ntu.edu.sg; siyuh@clemson.edu; yangwh@pcl.ac.cn; eackot@ntu.edu.sg;
+Abstract
+Shadow removal aims at restoring the image content within shadow regions, pursuing a uniform
+distribution of illumination that is consistent between shadow and non-shadow regions. Comparing
+to other image restoration tasks, there are two unique challenges in shadow removal: 1) The patterns
+of shadows are arbitrary, varied, and often have highly complex trace structures, making “trace-less”
+image recovery difficult. 2) The degradation caused by shadows is spatially non-uniform, resulting in
+inconsistencies in illumination and color between shadow and non-shadow areas. Recent developments
+in this field are primarily driven by deep learning-based solutions, employing a variety of learning
+strategies, network architectures, loss functions, and training data. Nevertheless, a thorough and
+insightful review of deep learning-based shadow removal techniques is still lacking. In this paper,
+we are the first to provide a comprehensive survey to cover various aspects ranging from technical
+details to applications. We highlight the major advancements in deep learning-based single-image
+shadow removal methods, thoroughly review previous research across various categories, and provide
+insights into the historical progression of these developments. Additionally, we summarize performance
+comparisons both quantitatively and qualitatively. Beyond the technical aspects of shadow removal
+methods, we also explore potential future directions for this field. The related repository is released
+at: https://github.com/GuoLanqing/Awesome-Shadow-Removal.
+Keywords: Shadow Removal, Low-Level Vision, Deep Learning, Image Enhancement, Computational
+Photography
+1 Introduction
+Shadowing is a natural occurrence observed when
+certain regions of a surface receive less illumina-
+tion compared to their neighboring areas. This
+happens when an opaque object obstructs the
+direct path of light between the surface and the
+light source. Shadows in images and videos hinder
+both the human perception [3,66] as well as many
+subsequent vision tasks, e.g., object detection,
+tracking, and semantic segmentation [29,40,107].
+
+arXiv:2407.08865v2  [cs.CV]  4 Oct 2024
+
+Deep CNN
+GAN
+RNN
+Unrolling
+Transformer
+Diffusion
+DeShadowNet 
+(CVPR’17)
+ST-CGAN 
+(CVPR’18)
+DSC
+(CVPR’18&
+TPAMI’19)
+ARGAN
+(ICCV’19)
+Mask-ShadowGAN
+(ICCV’19)
+RIS-GAN
+(AAAI’20)
+DHAN
+(AAAI’20)
+Le et al.
+(ECCV’20)
+G2R-ShadowNet
+(CVPR’21)
+LG-ShadowNet
+(TIP’21)
+DC-ShadowNet
+(ICCV’21)
+He et al.
+(ACMMM’21)
+Fu et al.
+(CVPR’21)
+Mask-ShadowNet
+(SPL’21)
+CANet
+(ICCV’21)
+CNSNet
+(ECCVW’22)
+ShadowFormer
+(AAAI’23)
+Zhu et al.
+(AAAI’22)
+ShadowDiffusion
+(CVPR’23)
+ShadowDiffusion
+(CVPR’23)
+BCDiff
+(ICCV’23)
+DeS3
+(AAAI’24)
+Mei et al.
+(WACV’24)
+Supervised Learning
+Unsupervised Learning
+Semi-supervised Learning
+Zero-shot Learning
+Fig. 1 Milestones in deep learning-based single-image shadow removal methods include the exploration of various tech-
+nologies over time, such as deep CNNs, GANs, RNNs, unrolling, transformers, and diffusion models.
+Shadow degradations manifest in diverse types
+and exhibit highly non-uniform properties, pre-
+senting unique challenges for shadow removal com-
+pared to other image restoration tasks. Traditional
+shadow removal methods leverage hand-crafted
+prior information such as illumination [1, 16, 28,
+72,85,105], gradient [12–15,17,23], and color [43,
+76, 95–97] to restore illumination in shadowed
+areas. Typically, some methods [11, 14] eliminate
+the image gradient along shadow edges and then
+reintegrate the modified gradient to produce a
+shadow-free image. However, these approaches are
+based on ideal assumptions, resulting in noticeable
+shadow boundary artifacts in real-world scenar-
+ios. They always require accurate and fine-grained
+shadow edges in the detection output as the strong
+prior for shadow removal, which is impractical in
+applications; another group [1, 16, 28, 72, 85, 105]
+treat shadow removal as a relighting problem,
+seeking a factor to enhance the brightness of
+shadow pixels. The main challenge is to determine
+different scale factors for umbra and penumbra
+shadows, along with addressing shadow bound-
+ary corrections due to non-uniform illumination
+degradation.
+In recent years, deep learning-based shadow
+removal methods [8,26,37,69] have demonstrated
+superior performance, owing to the availability
+of extensive training data. Figure 1 presents
+a concise overview of the milestones achieved
+by deep learning-based shadow removal meth-
+ods in the past years. In 2017, Qu et al. [69]
+first proposed a multi-branch fusion framework
+as the pioneering work to adopt a deep convo-
+lutional neural networks (CNNs) [46, 50, 83] to
+this field. Subsequently, starting from 2018, the
+advancement of Generative Adversarial Networks
+(GANs) [22] in the realm of low-level vision has
+led to widespread adoption of GAN-based net-
+works in shadow removal tasks. These networks
+are not only effective in addressing amplified
+artifacts but also enable the development of unsu-
+pervised learning methods using unpaired shadow
+and shadow-free data. During this period, some
+methods tried to inject constraints, e.g., phys-
+ical illumination model and mask information,
+into networks to learn more effective features,
+by unrolling [26, 113] or recurrent [8] strategies.
+In the most recent developments, novel tech-
+niques such as the transformer mechanism [9,
+53, 57, 82] and diffusion model [32, 42, 60, 71, 79]
+have shown remarkable advancements in shadow
+removal. The transformer mechanism exploits
+long-range dependencies within contexts, facili-
+tating more effective extraction of context infor-
+mation from non-shadow regions. Meanwhile, the
+diffusion model offers a potent diffusive generative
+prior for generating natural shadow-free images.
+
+Despite the dominance of deep learning in
+shadow removal research, there is a lack of an in-
+depth and comprehensive survey on deep learning-
+based solutions. The existing surveys for shadow
+removal [5, 65, 81] only cover traditional meth-
+ods based on earlier publications, but omit the
+recent works via deep learning approaches. In this
+paper, we are the first to review and summarize
+deep learning-based single-image shadow removal
+methods, aiming to offer a well-structured and
+comprehensive knowledge base to support and
+advance the field of shadow removal. The rest
+of the paper is organized as follows. Section 1
+introduces the shadow formulation model and
+the problem definition for the shadow removal
+task. Section 2 presents a detailed shadow for-
+mation model and outlines the various shadow
+categories, highlighting the different challenges
+associated with each. Section 3 provides a detailed
+survey of deep learning based single-image shadow
+removal of different learning strategies, including
+supervised, semi-supervised, unsupervised, and
+zero-shot learning, as well as summarises the
+challenges of analysis of shadow removal. Sub-
+sequently, Section 4 reviews the related techni-
+cal aspects and explores solutions to the afore-
+mentioned challenges through various technical
+designs and the integration of priors, including
+network architectures, basic blocks, framework
+designs, loss functions, datasets, and evaluation
+metrics. Section 5 summarizes the quantitative
+and qualitative comparisons of a number of single-
+image shadow removal methods among various
+benchmarks. Section 6 presents the related shadow
+removal applications, including shadow generation
+and shadow-related attack in practice. Section 7
+provides detailed discussions of the future research
+directions on generalized shadow removal and
+interactive shadow removal. Finally, the paper is
+concluded in Section 8.
+2 Analysis on Shadow
+Formation
+2.1 Shadow Formation Model
+According to the Retinex theory [47], the for-
+mation process of a shadow-free image Isf with
+normal lightness can be formulated as
+Isf = Lsf ◦R
+(1)
+where L denotes the illumination, R denotes the
+reflectance, and ◦denotes element-wise multipli-
+cation. Shadows occur when an occluder blocks
+light between the surface and the light source,
+causing partial light degradations. Thus, the cor-
+responding shadow image Is with degraded illu-
+mination Ls can be formulated as
+Is = Ls ◦R = A ◦Lsf ◦R,
+(2)
+where A denotes the spatially variant shadow
+degradation degrees at each location.
+2.2 Shadow Category
+Shadow degradations have diverse types and
+highly
+non-uniform
+properties,
+which
+present
+unique challenges for shadow removal compared
+to other image restoration tasks. Shadows can be
+classified as self shadows if they are part of an
+object or as cast shadows if they belong to the
+background of the scene as shown in Figure 2(a).
+For a non-point source of light, a cast shadow
+is further sub-divided into soft and hard shad-
+ows based on the illumination intensity (i.e.,
+darkness) as shown in Figure 2(b). Specifically,
+shadows produced by the obstruction of a non-
+point light source by an object exhibit two distinct
+regions: the umbra and the penumbra. The umbra
+denotes the high-density region, located toward
+the inner shadow area, whereas the penumbra rep-
+resents the low-density region, situated toward the
+outer shadow area. Hard shadows exhibit umbra
+regions with a high density, often resulting in
+nearly obliterated surface texture. In contrast,
+soft shadows display penumbra regions towards
+the outer shadow area, with lower density, and
+their boundaries typically blend into the non-
+shadowed surroundings. The distance between the
+occluder and receiver, as well as the type of light
+source, determines whether hard or soft shadows
+are produced, as depicted in Figure 2(b).
+Shadow degradations vary widely in type and
+exhibit highly non-uniform characteristics, requir-
+ing better generalization ability to handle vary-
+ing cases in the real world. Different shadow
+types present distinct challenges: hard shadows
+with sharp boundaries can leave noticeable traces,
+while soft shadows and self-shadows, with ambigu-
+ous boundaries, are more difficult to detect and
+mask accurately.
+
+Receiver
+Occluder
+Point light
+Umbra
+Umbra
+Umbra
+(b) Hard Shadow v.s. Soft Shadow
+Penumbra≈0
+Area light
+Area light
+Penumbra
+(a) Self Shadow v.s. Cast Shadow
+Receiver
+Occluder
+Point light
+Cast Shadow
+Self Shadow
+Self Shadow
+Cast Shadow
+Hard Shadow
+Soft Shadow
+Fig. 2 How a shadow is formed? (a) Shadows are then classified as cast shadows if they belong to the background of
+the scene or as self shadows if they are part of an occluder object. (b) The cast shadows can be further classified as hard
+shadows and soft shadows. A crisp edged one (hard shadow) formed by a point light source, a rather more fuzzy one (soft
+shadow) that is formed by the area light, and otherwise the occluder is very close to the receiver.
+3 Deep Learning Based
+Shadow Removal
+In this section, we first provide the problem def-
+inition of single-image shadow removal. Then,
+we review and discuss existing shadow removal
+methods according to the categories of general
+learning strategies. After that, we summarize the
+challenges and provide an analysis of existing
+methods.
+3.1 Problem Definition
+We begin by presenting the common formulation
+of the deep learning-based image shadow removal
+problem. For a shadow image Is ∈RH×W ×3
+with width W and height H, the process can be
+modeled as follows:
+ˆIsf = G(Is; θ),
+(3)
+where ˆIsf ∈RH×W ×3 is the restored shadow-free
+result and G represents the shadow removal net-
+work with trainable parameters θ. Different from
+other image restoration tasks, shadow removal is
+a partial corruption problem that requires identi-
+fying the shadow regions and restoring them. To
+aid this process, an optional shadow mask M ∈
+RH×W can be used as auxiliary information, indi-
+cating shadow regions either manually annotated
+or detected by a pre-trained shadow detector. The
+uniqueness property motivates numerous explo-
+rations into how shadow mask information can
+assist in shadow removal, facilitating the develop-
+ment of shadow mask-guided removal process as
+follows:
+ˆIsf = G(Is, M; θ) .
+(4)
+3.2 General Learning Strategies
+Based on different learning strategies, we gen-
+erally categorize existing image shadow removal
+methods into supervised learning, unsupervised
+learning, zero-shot learning, and semi-supervised
+learning. Figure 3 illustrates the brief pipeline
+of different learning strategies. In the following
+section, we review some representative methods
+for each strategy.
+Supervised
+Learning
+(SL)
+For
+shadow
+removal, supervised learning refers to the model
+training with paired shadow and shadow-free
+images captured in the same scene, but under
+different illumination conditions. The pioneer-
+ing deep learning-based work DeShadowNet [69]
+
+propose
+an
+automatic
+and
+end-to-end
+deep
+neural
+network
+to
+unify
+shadow
+detection,
+umbra/penumbra
+region
+classification,
+and
+shadow removal, which directly learns the map-
+ping function between the shadow image and its
+shadow matte. Subsequently, Wang et al. [90]
+developed a stacked conditional generative adver-
+sarial network (ST-CGAN) to simultaneously
+learn shadow detection and shadow removal.
+The ST-CGAN organizes all tasks in a way that
+allows them to focus on one task at a time dur-
+ing different stages, while also benefiting from
+mutual improvements through the exchange of
+information in both forward and backward direc-
+tions. Hu et al. [34] solve the shadow removal
+problem by a new perspective, which employs
+the spatial recurrent neural network with the
+direction-aware attention mechanism to exploit
+the context information. After that, Zhang et
+al. [104] design a coarse-to-fine pipeline with
+four generators as well as three discriminators to
+explore the residual and illumination information
+separately. A dual hierarchically aggregation net-
+work, DHAN [4], is proposed for shadow removal.
+The DHAN contains a series of growth dilated
+convolutions as the backbone and hierarchically
+aggregates multi-context features for attention
+and prediction. Lin et al. [54] specifically design
+BEDSR-Net for document image shadow removal
+and take advantage of specific properties of docu-
+ment images, consisting of the global background
+color and attention map estimation. Recently, a
+two-stage context-aware network [2] is proposed,
+which transfers contextual information from non-
+shadow to shadow regions at different scales with
+a contextual patch matching module.
+In comparison to jointly learning shadow
+detection and shadow removal to explore both the
+semantic and fine-structural levels, some recent
+methods enjoy better performance and more
+lightweight models by relying on an external pre-
+trained shadow detector or manually annotated
+mask information. A group of methods explicitly
+combine the physical shadow illumination model
+into the deep network to increase interpretability.
+For instance, Le et al. [48] propose to integrate the
+linear illumination transformation into the deep
+network to model the shadow effects. This work
+uses a regression model to estimate the scaling
+factor and additive constant parameters for linear
+transformation. Following that, Fu et al. [18] re-
+formulate shadow removal as an exposure fusion
+challenge. They reconstruct shadow-free results by
+intelligently blending over-exposed shadow images
+with shadow images using an adaptive per-pixel
+kernel weight map. Zhu et al. [113] design an
+iterative algorithm and unfold pipeline to ensure
+the identity mapping among non-shadow regions
+and adaptively perform the fine-grained spatial
+mapping between shadow regions. Moreover, the
+shadow images can be divided into shadow and
+non-shadow regions based on the pre-defined
+shadow mask, which is very effective prior for
+shadow removal. A Mask-ShadowNet [30] is pro-
+posed, which includes a masked adaptive instance
+normalization layer with embedded aligners and
+processes the shadow and non-shadow regions
+separately by different statistics. To ensure the
+consistency between shadow removal and genera-
+tion, Zhu et al. [112] propose a bijective mapping
+network (BMNet) to recover the underlying back-
+ground contents during the forward procedure
+under the guidance of a color map and shadow
+mask. Guo et al. [25] propose ShadowFormer to
+exploit the illumination information from non-
+shadow regions to help shadow regions restoration
+via the customized transformer blocks.
+Semi-Supervised Learning (SSL) In recent
+years, semi-supervised learning has emerged as
+an approach to leverage the strengths of both
+supervised learning and unsupervised learning. It
+leverages both paired data and unpaired data to
+boost the model performance and improve gener-
+alization ability. Ding et al. [8] propose a semi-
+supervised deep attentive recurrent generative
+adversarial network (ARGAN) to progressively
+detect and remove shadows. The generator of
+ARGAN performs multiple progressive steps in a
+coarse-to-fine manner, serving the dual purpose of
+generating shadow attention maps and recovering
+the shadow-removal images. The semi-supervised
+strategy is implemented by incorporating a sig-
+nificant number of unsupervised shadow images
+available online during the training process, which
+achieves better robustness and performance to
+complicated environment.
+Unsupervised Learning (UL) While super-
+vised learning methods have shown remarkable
+success in various scenarios, they heavily rely on
+large amounts of paired training data, which can
+
+Network
+Supervised Learning
+Network
+Semi-Supervised Learning
+Network
+Unsupervised Learning
+Network
+Zero-Shot Learning
+Ground Truth
+Reference
+x
+Input
+Output
+Output
+Output
+Illumination Consistency 
+Color Balance
+Boundary Smoothness
+…
+Input
+Input
+Input
+Output
+…
+Loss
+Loss
+Loss
+Loss
+Loss
+Fig. 3 Illustration of common deep learning strategies for
+single-image shadow removal. Details refer to Section 3.2.
+be costly and time-consuming to obtain. Besides,
+training a deep model on paired data is typically
+designed to solve specific tasks, which struggle to
+adapt to new or out-of-distribution cases with-
+out retraining. To address this issue, inspired by
+unsupervised image translation methods, Hu et
+al. [35] propose the mask guided cycle Gener-
+ative Adversarial Network (GAN) using dual-
+generator, named Mask-ShadowGAN, to employ
+the unpaired data for shadow removal. Similarly,
+Liu et al. [58] also follow the cycle consistency
+pipeline while integrate the lightness information
+into the generator. Different from the previous
+works requiring the pre-defined shadow mask, the
+DC-ShadowNet [38] is proposed to employ the
+shadow/shadow-free domain classifier as the guid-
+ance and a series of loss functions to enable the
+generator focus on the shadow regions. He et
+al. [31] focus on portrait shadow removal instead
+of general one, which proposes to solve shadow
+removal task as a layer decomposition problem
+and leverages the generative facial priors.
+Zero-Shot Learning (ZSL) Supervised learn-
+ing, and unsupervised learning methods exhibit
+limitations in terms of their ability to generalize
+or undergo stable training. To address these chal-
+lenges, the concept of zero-shot learning has been
+introduced in low-level vision tasks. In this con-
+text, zero-shot learning refers to the approach of
+learning image enhancement solely from testing
+images, without the need for paired or unpaired
+training data. It is important to note that the
+definition of zero-shot learning in low-level vision
+tasks differs from its definition in high-level visual
+tasks. The goal is to emphasize that the method
+does not rely on specific training data arrange-
+ments, aiming to overcome the limitations and
+instability associated with other learning methods
+in low-level vision tasks [24,75]. Shadows, in fact,
+only form partial degradation in images, while
+their non-shadow regions provide rich structural
+and illumination information for shadow regions’
+restoration. Based on that, Le et al. [49] propose
+to crop image patches with and without shadows
+from shadow images as the unpaired training sam-
+ples, which can be trained using shadow images
+themselves. Then they introduce a set of physics-
+based constraints that enables the adversarial
+training. After that, Liu et al. [59] propose the
+G2R-ShadowNet to leverage shadow generation
+to simulate shadow degradation in non-shadow
+regions, leading to paired data for training.
+3.3 Challenges and Analysis
+The goal of single-image shadow removal is to
+eliminate shadows from images while maintain-
+ing or restoring the original appearance of the
+scene. However, there are a few challenges to
+accomplishing the goal (refer to Figure 4):
+• Trace-less result. The patterns of shadows
+are characterized by their arbitrary nature,
+diversity, and occasionally, by their highly intri-
+cate trace structures, which present substan-
+tial challenges in achieving “trace-less” image
+restoration. Consequently, the fabrication of
+a shadow mask that accurately and meticu-
+lously captures the shadow patterns proves to
+be a formidable task. Moreover, the variations
+in illumination around the shadow boundaries
+are pronounced, complicating the modeling of
+the sophisticated and abrupt changes in these
+boundary regions. As a consequence of these
+
+Structure Distortion
+（a) Input
+（b) DC-ShadowNet
+（c) GT
+Boundary Trace
+（a) Input
+（b) BMNet
+（c) GT
+Inconsistency
+（a) Input
+（b) ShadowDiffusion
+（c) GT
+Fig. 4 Illustration of the three major artifacts/challenges
+in
+deep
+learning-based
+shadow
+removal,
+i.e.,
+bound-
+ary
+trace
+(top),
+color
+and
+illumination
+inconsistency
+(middle),
+and
+structure
+distortion
+(bottom).
+Results
+by the representative method for each challenge are
+shown, i.e., BMNet [112], ShadowDiffusion [26], and DC-
+ShadowNet [38], respectively.
+complexities, the removal of shadows, particu-
+larly those with hard, sharp edges, is prone to
+the generation of artifacts along the edges where
+the shadow interfaces with the non-shadowed
+areas. In addressing this challenge, conventional
+approaches [17, 23] typically involve smooth-
+ing the gradient around the boundary. Sim-
+ilarly, deep learning-based methods [27, 38]
+have employed customized Total Variation (TV)
+loss functions in boundary regions to mitigate
+boundary artifacts.
+• Illumination and color consistency. Shad-
+ows represent more than just areas of darker
+pixels; they encompass complex visual phenom-
+ena characterized by variations in color, texture,
+and brightness. These characteristics are influ-
+enced by the properties of both the light source
+and the surfaces they interact with. Further-
+more, shadows, despite their impact on image
+quality, constitute only partial degradation
+within images. Conversely, the non-shadowed
+regions offer rich and accurate color and illumi-
+nation information, serving as a reference stan-
+dard. As a result, the goal of shadow removal is
+not only to enhance the shadow regions but also
+to pursue consistent illumination and color com-
+pared to non-corrupted (non-shadow) regions.
+Several existing deep learning-based method-
+ologies have endeavored to expand the recep-
+tive field to incorporate valuable information
+from non-shadowed regions as guidance. This
+has been achieved through various techniques,
+including the fusion of multi-level features [69],
+employment of dilated convolutions [4], uti-
+lization of patch matching algorithms [2], and
+incorporation of transformer mechanisms [25].
+• Structure distortion. Data fidelity is a preva-
+lent concern in various image restoration tasks,
+including shadow removal, where the aim is to
+produce high-fidelity results that closely resem-
+ble the original scene. Particularly within the
+context of shadow removal, unique challenges
+arise. On the one hand, objects with intri-
+cate textures or reflective surfaces can exhibit
+complex shadow patterns that are challeng-
+ing to remove without affecting the underlying
+structure. The removal process must distin-
+guish between shadow-related texture and gen-
+uine object details to avoid distortion. Besides,
+the boundaries between shadowed and non-
+shadowed areas can be ambiguous or ill-defined,
+particularly in scenes with diffuse lighting or
+complex geometry. Errors in delineating these
+boundaries can lead to inaccuracies in shadow
+removal and subsequent structure distortion.
+On the other hand, some works [35,90] applied
+adversarial losses for training shadow removal
+networks and tried to model the image distri-
+bution explicitly. However, these models usu-
+ally hallucinate unrealistic image contents and
+structures. To mitigate this issue, some existing
+methods have adopted perceptual loss tech-
+niques to ensure structural consistency between
+input shadow images and the resulting outputs.
+
+78%
+10%
+3%
+9%
+SL
+UL
+SSL
+ZSL
+(a) Learning Strategy
+69%
+31%
+U-Net like
+Others
+(b) Network Structure
+69%
+31%
+w mask
+w/o mask
+(c) Mask Input
+19%
+81%
+w physic
+w/o physic
+(d) Physic Model
+
+ISTD
+ISTD+
+SRD
+SBU
+LRSS
+USR
+Simulated
+Video Dataset
+(e) Training Dataset
+
+ISTD
+ISTD+
+SRD
+SBU
+UIUC
+LRSS
+UCF
+USR
+Simulated
+Video Dataset
+(f) Testing Dataset
+
+L1
+L2
+adversarial
+detection
+colour
+perceptual
+illumination
+boundary
+regression
+mask
+(g) Loss Function
+19 19
+
+PSNR
+SSIM
+RMSE
+LPIPS
+User Study
+NIQE
+FLOPS
+Runtime
+Params
+(h) Evaluation Metric
+Fig. 5 A statistical analysis of the number of deep learning-based shadow removal methods, according to their learning
+strategy, network characteristic, mask input, physic model, training dataset, testing dataset, loss function, and evaluation
+metric.
+4 Technical Review and
+Discussion
+In this section, we review and discuss the technical
+details and employed priors designed to address
+the aforementioned challenges in Section 3.3 from
+different perspectives, such as network structure,
+integrating physical illumination models, exploit-
+ing shadow detection for removal, and using deep
+generative models for shadow removal. We then
+summarize the widely used loss functions, training
+and testing datasets, and evaluation metrics.
+4.1 Network Structure
+As deep learning techniques advance, there’s a
+noticeable trend in newly proposed methods to
+incorporate more sophisticated basic blocks with
+enhanced modeling capabilities. These blocks are
+subsequently integrated to build more complex
+shadow removal networks. In the following section,
+we provide detailed designs and rationales for
+various basic blocks employed in deep learning-
+based shadow removal networks, as illustrated in
+Figure 6.
+U-Net and Multi-Scale Addressing shadow
+removal as a partial corruption problem brings
+forth its own set of unique challenges, prompt-
+ing us to emphasize the importance of maximizing
+the receptive field of the model to encompass as
+much non-corrupted context information as possi-
+ble. The widely adopted U-Net-like structure [70]
+(Figure 6(a)) serves as a fundamental backbone in
+shadow removal tasks, representing approximately
+69% of the approaches, as depicted in Figure 5(b).
+This architecture has garnered widespread usage
+due to its ability to preserve both low-level struc-
+tural details and high-level semantic information,
+facilitating high-quality restoration of shadow-
+free images while accurately identifying shadow
+regions. Moreover, alternative structural designs
+incorporate multi-scale information using vari-
+ous dilated kernels (Figure 6(b)) or by leverag-
+ing different feature maps extracted from pre-
+trained models, such as VGG16 (Figure 6(f)).
+This approach also enables the capture of diverse
+information across multiple levels and effectively
+enlarging the receptive field.
+One-Stage v.s. Multi-Stage A few methods
+incorporate the use of two-stage or multi-stage
+pipelines for shadow removal. Such a strategy
+enables the application of fine-grained constraints
+at different stages of the pipeline, facilitating more
+precise and effective restoration. By dividing the
+whole restoration process into multiple stages,
+each stage can conduct its specific set of con-
+straints. For instance, certain techniques [18, 48]
+integrate an additional refinement module follow-
+ing the initial processing stage. This refinement
+step aims to further enhance the structural details
+
+Conv
+Conv
+Conv
+Conv
+Conv
+Conv
+(a) U-Net
+LN
+MSA
+MLP
+LN
+(c) Transformer Block
+Conv
+Conv
+Conv
+LSTM
+Conv
+𝒙𝟏𝒙𝒕#𝟏
+𝒚
+Conv
+Conv
+Conv
+LSTM
+Conv
+(d) Recurrent Network
+Conv
+Conv
+Conv
+Conv
+Conv
+Conv
+Conv
+Conv
+(f) Multi-Branch Fusion
+Concat
+Conv
+(e) Invertible Block
+(g) Direction Attention Network
+𝟏×𝟏Conv
+𝟏×𝟏Conv
+Conv
+Conv
+Concat
+condition
+(b) Dilated Network
+Conv
+Conv
+Conv
+Conv
+Conv
+Conv
+𝟏×𝟏Conv
+𝟏×𝟏Conv
+Concat
+Concat
+𝟏×𝟏Conv
+𝟏×𝟏Conv
+Fig. 6 The network architectures of the building blocks that are widely used in deep shadow removal algorithms.
+or mitigate any artifacts present in the output
+produced by the preceding stage. Nevertheless,
+in contrast to single-stage methods, they often
+demand double or even multiple times the number
+of parameters and inference time.
+CNN
+v.s.
+Transformer
+The
+era
+of
+deep
+learning-based shadow removal began in the year
+2017 with the work of Qu et al. [69]. They
+introduced a pioneering multi-branch fusion archi-
+tecture (Figure 6(f)) designed to independently
+extract both local and global information using
+cascaded CNNs across different layers. Follow-
+ing this, a series of CNN-based networks [4, 38,
+48, 49, 113] are constructed to improve the per-
+formance of shadow removal. After that, the
+transformer mechanism [82] capitalizes on long-
+range dependencies within contexts, leading to
+notable enhancements across various vision tasks,
+including image restoration and enhancement.
+In scenarios involving partial corruption, such
+as shadow removal, transformer-based networks
+exhibit greater potential due to the limited avail-
+ability of corrupted contextual information to
+guide restoration. As a result, transformer-based
+models (Figure 6(c)) are becoming increasingly
+prevalent in the field of shadow removal [25,101].
+Recurrent and Recursive Recurrent neural
+networks (RNNs) can be used in an iterative
+manner to refine the restoration results over
+multiple iterations. This iterative refinement pro-
+cess
+allows
+RNN-based
+models
+to
+effectively
+address complex restoration tasks that require
+fine-grained adjustments and corrections. Cer-
+tain existing methods [8] have employed recurrent
+networks, depicted in Figure 6(d), to gradually
+detect and eliminate shadows using a sequential
+process. Hence, employing a recurrent unit like
+Long Short-Term Memory (LSTM) can ensure
+the preservation of valuable and detailed informa-
+tion, thereby enhancing the accuracy of detected
+shadow regions and producing increasingly realis-
+tic shadow-removal images. By dividing the pro-
+cess into multiple stages, each with its specific
+set of constraints, the system can better address
+various aspects of shadow removal, resulting in
+enhanced performance and accuracy.
+Attention Mechanism Shadows often occur in
+specific regions of an image, and the attention
+mechanism allows the model to selectively focus
+on these shadowed area. By attending to rele-
+vant parts of the image, the model can effectively
+
+target shadow regions for removal while preserv-
+ing non-shadowed areas. Some methods [35, 90]
+directly serve the shadow mask as the atten-
+tion for the removal. Others predict a learnable
+attentive map as the auxiliary module by con-
+sidering the direction (Figure 6(g)) or recurrent
+attention [111].
+4.2 Integrating Physical
+Illumination Model
+The physical properties of shadows are effec-
+tive prior to shadow removal, which guarantees
+that the networks would learn physically plausible
+transformations.
+Parameter estimation. Some studies [48, 49]
+employ a linear function to model the relationship
+between illuminated and shadowed pixels. They
+assume this linear relationship remains consistent
+during the camera’s color acquisition process [10].
+Consequently, the illuminated image can be rep-
+resented as a linear function of its shadowed
+values:
+Ilit = ω ◦Is + b,
+(5)
+ˆIsf = α ◦Is + (1 −α) ◦Ilit,
+(6)
+where ω = [ωR, ωG, ωB] , b = [bR, bG, bB] for dif-
+ferent color channels. b represents the camera’s
+response to direct illumination, while ω denotes
+the attenuation factor of ambient illumination for
+a given pixel in a particular color channel. With
+this assumption in mind, they employ a deep
+regression model to estimate the parameters ω and
+b based on input data comprising both shadow
+and shadow-free images. Subsequently, an addi-
+tional network, specialized for matte prediction, is
+applied to generate the pixel-wise shadow matte
+α. This matte effectively combines information
+from the illuminated and shadowed regions of the
+images.
+Deep unrolling. Another group of works [26,113]
+employs deep unrolling to enhance the inter-
+pretability of models. This popular and powerful
+approach incorporates known physical priors into
+deep networks, achieving superior performance
+across various image restoration problems [45,64,
+87,89,103,109]. The shadow formation model (2)
+can be re-formulated as
+Is = A ◦Isf .
+(7)
+Based on that, the shadow removal can be for-
+mulated as a degradation prior guided model,
+where regularization terms R(·) are inferred by the
+learnable conditional deep CNN networks [113] or
+generative diffusion model [26] as follows:
+ˆIsf = argmin
+Isf
+∥Is −A ◦Isf∥2
+F + R(Isf) .
+(8)
+4.3 Exploiting Shadow Detection
+for Removal
+Shadow removal often relies on accurate shadow
+detection. Before removing shadows from an
+image, it’s essential to identify where the shad-
+ows are present. Shadow detection algorithms
+help locate regions of shadow within an image,
+providing the necessary information for subse-
+quent removal processes. Most existing shadow
+removal methods leverage rich semantic and struc-
+tural information learnt from shadow detection as
+prior knowledge, which can roughly be divided
+into three widely used frameworks as shown in
+Figure 7:
+1. Separate learning: Most shadow removal
+techniques (refer to the methods that require
+mask input in Table 1) incorporate a pre-
+trained shadow detection model before the
+removal stage. This model generates a corre-
+sponding shadow mask for the input shadow
+image, which serves as a conditional input
+for the shadow removal network. The shadow
+detection model remains fixed and oper-
+ates as a pre-processing step for the shadow
+removal process.
+2. Joint learning: The adopted frozen shadow
+detection model may encounter a domain gap
+when tested on cases with distinct distri-
+butions from the training data. Inaccurate
+detection of shadows could misguide the sub-
+sequent shadow removal network. To address
+this, some approaches [90] have employed
+a joint training strategy, optimizing both
+the shadow detection and removal networks
+simultaneously. This allows for fine-tuning
+the shadow detector to the current data
+
+Table 1
+Summary of key characteristics of notable deep learning-based methods. “Physic” denotes whether the methods
+integrate physical models. “Mask” shows whether the methods require a mask as input for inference.
+Method
+Learning
+Network Structure
+Loss Function
+Training Data
+Testing Data
+Evaluation Metric
+Platform Physic Mask
+
+DeShadowNet [69]
+SL
+multi-branch fusion
+semantic network, end-to-end
+MSE loss (log space)
+SRD
+UIUC LRSS SRD
+RMSE SSIM (LAB space)
+Caffe
+
+ST-CGAN [90]
+SL
+U-Net like network
+joint learning
+GAN, end-to-end
+adversarial loss
+reconstruction loss
+detection loss
+ISTD SBU
+SBU UCF ISTD
+RMSE (LAB space)
+PyTorch
+
+SP+M-Net [48]
+SL
+U-Net like network
+regression model(ResNeXt)
+two subnetworks
+regression loss
+reconstruction loss
+ISTD SBU
+SBU UCF ISTD
+RMSE (LAB space)
+PyTorch
+✓
+✓
+DSC [34]
+SL
+spatial RNN
+direction-aware attention
+colour loss
+reconstruction loss
+ISTD SBU
+SBU UCF ISTD
+RMSE (LAB space)
+Caffe
+Mask-ShadowGAN [35]
+UL
+U-Net like network
+GAN
+dual-generator
+cycle-consistency loss
+adversarial loss
+identity loss
+SRD ISTD USR
+SRD ISTD USR
+RMSE (LAB space)
+User Study
+PyTorch
+✓
+ARGAN [8]
+SSL
+GAN
+recursive network
+detection loss
+adversarial loss
+reconstruction loss
+perceptual loss
+SRD ISTD
+SRD ISTD
+RMSE (LAB space)
+TensorFlow
+
+RIS-GAN [104]
+SL
+U-Net like network
+four subnetworks
+GAN joint discriminator
+perceptual loss
+reconstruction loss (ℓ1)
+residual loss illumination loss
+cross loss adversarial loss
+ISTD SRD
+ISTD SRD
+RMSE (LAB space)
+User Study
+TensorFlow
+DHAN [4]
+SL
+dilated convolution, GAN
+hierarchical attention
+spatial pooling pyramid
+perceptual loss
+binary cross entropy loss
+adversarial loss
+ISTD SRD
+simulated
+ISTD SRD
+simulated
+LPIPS SSIM
+PSNR RMSE
+TensorFlow
+Le et al. [49]
+ZSL
+U-Net like network
+regression network
+GAN
+matting loss smoothness loss
+boundary loss
+adversarial loss
+ISTD
+Video Dataset
+ISTD
+Video Dataset
+RMSE (LAB space)
+TensorFlow
+✓
+✓
+
+Fu et al. [18]
+SL
+regression model
+multi-stage, fusion network
+U-Net like network
+reconstruction loss (ℓ1)
+boundary gradient loss
+SRD ISTD ISTD+ SRD ISTD ISTD+
+RMSE (LAB space)
+PyTorch
+✓
+✓
+Mask-ShadowNet [30]
+SL
+U-Net like network
+adaptive instance normalization
+end-to-end
+perceptual loss
+ISTD
+ISTD
+RMSE (LAB space)
+PyTorch
+✓
+CANet [2]
+SL
+DenseNet
+patch matching mechanism
+contextual feature transfer
+DenseUNet
+multi-stage
+regression loss
+reconstruction loss (L2)
+cross-entropy loss
+perceptual loss
+gradient loss
+SRD ISTD
+SRD ISTD
+RMSE (LAB space)
+PyTorch
+G2R-ShadowNet [59]
+ZSL
+U-Net like network
+GAN
+three subnetworks
+adversarial loss
+identity loss
+cycle-consistency loss
+refinement loss area loss
+ISTD
+Video Dataset
+ISTD
+Video Dataset
+PSNR SSIM
+RMSE (LAB space)
+PyTorch
+✓
+LG-ShadowNet [58]
+UL
+multi-stage
+GAN
+U-Net like network
+identity loss
+cycle-consistency loss
+adversarial loss
+colour loss
+ISTD ISTD+ USR ISTD ISTD+ USR
+PSNR SSIM User Study
+RMSE (LAB space)
+SSEQ NIQE DBCNN
+Runtime #P FLOPs
+PyTorch
+✓
+DC-ShadowNet [38]
+UL
+U-Net like network
+GAN
+chromaticity loss
+perceptual loss
+classification loss
+boundary smoothness loss
+adversarial loss identity loss
+reconstruction consistency loss
+SRD ISTD+ ISTD
+USR LRSS
+SRD ISTD+ ISTD
+USR LRSS
+PSNR RMSE (LAB space)
+PyTorch
+
+Zhu et al. [113]
+SL
+U-Net like network
+unfolding
+recursive network
+reconstruction loss
+regularization loss
+ISTD SRD
+ISTD SRD
+PSNR SSIM
+RMSE (LAB space)
+Runtime #P FLOPs
+PyTorch
+✓
+✓
+BMNet [112]
+SL
+invertible network
+colour loss
+reconstruction loss (ℓ1)
+ISTD ISTD+ SRD ISTD ISTD+ SRD
+PSNR SSIM
+RMSE (LAB space)
+PyTorch
+✓
+CNSNet [101]
+SL
+U-Net like network
+transformer
+adaptive normalization
+reconstruction loss (ℓ1)
+perceptual loss
+boundary gradient loss
+soft mask loss
+ISTD ISTD+ SRD ISTD ISTD+ SRD
+PSNR SSIM
+RMSE (LAB space)
+PyTorch
+✓
+SG-ShadowNet [86]
+SL
+U-Net like network
+style transfer
+prototypical normalization
+reconstruction loss (ℓ1)
+area loss
+spatial consistency loss
+ISTD+ SRD
+ISTD+ SRD
+Video Dataset
+LPIPS RMSE (LAB space)
+PyTorch
+✓
+
+BA-ShadowNet [67]
+SL
+encoder-decoder
+multi-branch
+boundary loss
+similarity loss
+shadow-free consistency loss
+ISTD+ SRD
+ISTD+ SRD
+PSNR SSIM
+RMSE (LAB space)
+PyTorch
+✓
+DMTN [55]
+SL
+encoder-decoder
+multi-branch
+perceptual loss
+reconstruction loss (ℓ1)
+adversarial loss
+ISTD ISTD+ SRD ISTD ISTD+ SRD
+PSNR SSIM
+RMSE (LAB space)
+PyTorch
+✓
+ShadowFormer [25]
+SL
+transformer
+encoder-decoder
+reconstruction loss (ℓ1)
+ISTD ISTD+ SRD ISTD ISTD+ SRD
+PSNR SSIM
+#P RMSE (LAB space)
+PyTorch
+✓
+SHARDS [73]
+SL
+U-Net like network
+two-stage
+adversarial loss
+perceptual loss
+ISTD SFHQ
+ISTD SFHQ
+RMSE (LAB space)
+PyTorch
+✓
+LRA&LDRA [102]
+SL
+U-Net like network
+residual learning
+reconstruction loss (ℓ1)
+ISTD+ SRD
+ISTD+ SRD
+PSNR SSIM
+RMSE (LAB space)
+Runtime #P FLOPs
+PyTorch
+✓
+ShadowDiffusion [26]
+SL
+diffusion model
+unfolding
+reconstruction loss
+mask loss
+ISTD ISTD+ SRD ISTD ISTD+ SRD
+PSNR SSIM
+RMSE (LAB space)
+PyTorch
+✓
+✓
+FSR-Net [100]
+SL
+multi-stage
+U-Net like network
+reconstruction loss
+mask loss
+ISTD ISTD+ SRD ISTD ISTD+ SRD
+PSNR SSIM
+RMSE (LAB space)
+PyTorch
+✓
+Inpaint4Shadow [52]
+SL
+fusion network
+Resnet, inpainting network
+reconstruction loss
+mask loss
+ISTD ISTD+ SRD ISTD ISTD+ SRD
+PSNR SSIM
+RMSE (LAB space)
+PyTorch
+✓
+BCDiff [27]
+ZSL
+diffusion model
+decomposition model
+reconstruction loss
+boundary loss
+ISTD+ Video
+ISTD+ Video
+PSNR SSIM
+RMSE (LAB space)
+PyTorch
+✓
+
+Liu et al. [56]
+SL
+encoder-decoder
+multi-branch
+boundary loss
+similarity loss
+shadow-free consistency loss
+ISTD+ SRD
+ISTD+ SRD
+PSNR SSIM
+RMSE (LAB space)
+PyTorch
+✓
+DeS3 [39]
+SL
+diffusion model
+attention
+classifier guidance
+perceptual loss
+reconstruction loss (ℓ1)
+adversarial loss
+ISTD ISTD+ SRD ISTD ISTD+ SRD
+LRSS UCF UIUC
+PSNR SSIM User Study
+RMSE (LAB space)
+PyTorch
+Mei et al. [62]
+SL
+latent diffusion
+multi-stage
+reconstruction loss
+ISTD ISTD+ SRD
+ISTD ISTD+
+SRD DeSOBA
+PSNR SSIM Runtime
+#P RMSE (LAB space)
+PyTorch
+✓
+HomoFormer [98]
+SL
+transformer
+U-Net like network
+reconstruction loss
+ISTD+ SRD
+ISTD+ SRD
+PSNR SSIM Runtime
+#P RMSE (LAB space)
+PyTorch
+✓
+
+𝐺!
+𝐺"
+𝐺
+𝐺!
+𝐺"
+Separate Learning
+Joint Learning
+Multi-Task Learning
+Forward Flow
+Backward Flow
+Input
+Input
+Input
+Predict Mask
+Predict Mask
+Predict Mask
+Predict Shadow-free
+Predict Shadow-free
+Predict Shadow-free
+Fig. 7 Illustration of the three strategies of combining
+shadow removal and detection, i.e., separate learning, joint
+learning, and multi-task learning strategies.
+domain, effectively mitigating the domain
+gap issue.
+3. Multi-task learning: Another category of
+shadow removal methods [4] has adopted
+the multi-task learning framework to exploit
+shared representations and simultaneously
+output shadow mask and shadow-free results.
+This approach minimizes redundancy in fea-
+ture representation learning and parameter
+sharing, resulting in more efficient utilization
+of computational resources and decreased
+inference time.
+4.4 Deep Generative Model for
+Shadow Removal
+Generative models, by design, learn the under-
+lying data distribution of training images. This
+allows them to generate or reconstruct images that
+are close to the real shadow-free data distribu-
+tion, effectively filling in missing textures or colors
+and avoiding amplified artifacts, such as over-
+smoothness. This is particularly useful in shadow
+removal, where the model must understand the
+natural image prior to effectively removing shad-
+ows without leaving traces. Here, we primar-
+ily discuss two types of generative models that
+are widely used in shadow removal: Generative
+Adversarial Networks (GANs) [21] and diffusion
+models [32].
+GAN-based methods. GAN-based models for
+shadow removal leverage the adversarial train-
+ing framework to distinguish between shadow and
+non-shadow regions, aiming to generate shadow-
+free images that are indistinguishable from real,
+shadowless photos. While the integration of adver-
+sarial loss in shadow removal models can mit-
+igate some issues such as boundary artifacts,
+such as those proposed by Wang et al. [90] and
+Hu et al. [35] necessitate careful adjustment dur-
+ing training. Furthermore, these methods may
+exhibit tendencies to overfit specific visual features
+or data distributions, potentially leading to the
+generation of hallucinated content and artifacts.
+Diffusion-based methods. Recently, numerous
+diffusion models, including the widely recognized
+diffusion denoising probability model (DDPM)
+[32], have garnered significant interest in the field
+of low-level vision [32, 42, 71, 79, 91, 93]. Guo et
+al. [26] pioneered the integration of diffusion mod-
+els into the domain of shadow removal. Subse-
+quently, a series of methods [27, 39, 62] tend to
+employ the diffusion model as the backbone. While
+diffusion-based methods have demonstrated their
+efficacy in producing realistic shadow-free results,
+they are often accompanied by a significant draw-
+back: the time-consuming nature of the inference
+process, primarily attributable to the iterative
+sampling procedures involved. In some applica-
+tions, such as real-time processing, there may be
+strict requirements on the latency of inference.
+4.5 Loss Function
+The commonly adopted loss functions in shadow
+removal methods are the full-reference loss, e.g.,
+reconstruction loss (ℓ1, ℓ2), and perceptual loss.
+Additionally, depending on specific settings and
+formulations, some non-reference loss functions
+like boundary loss, adversarial loss, and color loss
+are also utilized. We provide a detailed expla-
+nation of some representative loss functions as
+follows.
+Reconstruction Loss. Reconstruction loss refers
+to the measure of dissimilarity between the ground
+truth image and the restored image produced by
+the model, which is typically computed by com-
+paring the pixel values of the restored image with
+the corresponding pixel values of the clean image.
+Different reconstruction losses have their advan-
+tages and disadvantages [51, 108]. ℓ2 loss, also
+
+known as mean squared error (MSE) loss, penal-
+izes larger errors more than smaller errors. While
+ℓ2 loss is effective at capturing global trends and
+minimizing overall reconstruction errors, it can
+sometimes blur or smooth out fine details due to
+its emphasis on larger errors. On the other hand,
+ℓ1 loss, also known as mean absolute error (MAE)
+loss, treats all errors equally regardless of their
+magnitude. It is less sensitive to outliers and can
+preserve colors and illuminance well, as it does
+not disproportionately penalize local deviations
+in the image structure. Consequently, ℓ1 loss can
+result in sharper edges and better preservation of
+high-frequency details. Structural Similarity Index
+(SSIM) loss is designed to preserve the struc-
+ture and texture of the image, leading to visually
+pleasing results.
+Boundary Loss.
+The illumination surround-
+ing the shadow boundary of shadow images
+often exhibits abrupt variations, easily leading
+to boundary artifacts in the restored results. In
+order to address this issue, a boundary-aware
+smoothness loss is intuitively employed to encour-
+age smoother transitions along the boundaries in
+methods that require shadow masks. Typically,
+the boundary-aware smoothness loss focuses on
+minimizing the gradients in the horizontal and
+vertical directions within the boundary regions
+during the training process [27,38], which is a type
+of non-reference loss and does not require ground
+truth shadow-free image as follows:
+Lboundary =
+ B (M) ◦
+
+
+
+∇
+
+ˆIsf
+
+
+
+
+
+1 ,
+(9)
+where ∇is the gradient operation, B is a noise-
+robust function [74,99] to compute the boundaries
+of the shadow regions from the corresponding
+shadow mask M.
+Adversarial
+Loss. Adversarial learning is a
+technique that involves solving a maximization-
+minimization optimization problem [21] to foster
+enhanced results that are perceptually indistin-
+guishable from reference images. It leverages the
+interplay between a generator and a discriminator
+to generate enhanced results that closely resem-
+ble the reference images, enabling the generation
+of high-quality and realistic outputs.
+Perceptual Loss. Perceptual loss is a tech-
+nique used to encourage the generated results to
+closely resemble the ground truth in the feature
+space. The loss enhances the visual quality of the
+outputs by considering high-level features. It is
+computed as the Euclidean distance between the
+feature representations of an enhanced result and
+the corresponding ground truth. Typically, these
+feature representations are extracted from pre-
+trained networks, such as VGG [78], which enables
+the model to leverage the knowledge learned from
+a large dataset like ImageNet [6], making the per-
+ceptual loss more effective in capturing meaningful
+features.
+Lperceptual = ∥ϕ(Isf) −ϕ(ˆIsf)∥2
+2 .
+(10)
+Color Loss. Some methods [58, 92] encourage
+the colour in restored result ˆIsf to be the same
+with the shadow-free reference Isf according to
+the extra colour loss as follows:
+Lcolor =
+X
+p
+
+1 −cos < (ILAB
+sf
+)p, (ˆILAB
+sf
+)p >
+
+,
+(11)
+where (·)p denotes the pixel with index p and and
+cos < ·, · > represents the cosine angle between
+vectors. Each pixel in the restored image or input
+image is treated as a 3D vector representing the
+Lab color space. The cosine similarity between
+two color vectors equals 1 when the vectors are
+perfectly aligned.
+4.6 Training and Testing Datasets
+UIUC [28] comprises 108 images, each featur-
+ing a shadow image and its corresponding ground
+truth shadow-free image. Of these, 72 images are
+designated for training, and the remaining 76
+for testing. The dataset includes various shadow
+types, such as soft shadows and self-shadows.
+Among the 76 test image pairs, 46 pairs are cre-
+ated by removing the shadow source while keeping
+the light source unchanged. In the remaining 30
+pairs, shadows are cast by objects within the
+scene, with the shadow-free image generated by
+blocking the light source, enveloping the entire
+scene in shadow. The corresponding shadow mask
+is generated by thresholding the ratio between the
+paired shadow and shadow-free images.
+LRSS [23] is a collection of real soft shadow test
+photographs. It includes 137 images, 37 of which
+have corresponding ground truth shadow-free ver-
+sions (along with mattes) to benchmark shadow
+
+Table 2
+Summary of shadow datasets. ‘Syn’ represents Synthetic.
+Name
+Number
+Resolution
+Format
+Real/Syn
+Mask
+Paired
+Type
+Simulated by Physic Model [23,36,77]
++∞
+∞
+RGB
+Syn
+Simulated by GAN [4,35,48]
++∞
+∞
+RGB
+Syn
+UIUC [28]
+
+640 × 425
+RGB
+Real
+✓
+✓
+soft, hard, self
+LRSS [23]
+
+5184 × 3456
+raw
+Real
+✓
+soft
+SRD [69]
+3,088
+800 × 640
+RGB
+Real
+✓
+soft, hard
+ISTD & ISTD+ [48,90]
+1,870
+640 × 480
+RGB
+Real
+✓
+✓
+hard
+USR [35]
+2,445
+600 × 450
+RGB
+Real
+soft, hard
+SBU [84]
+5,000
+Various
+RGB
+Real
+✓
+soft, self, hard
+removal methods. These ground truth images were
+produced by setting up a camera on a tripod
+and taking two photos: one with the shadow and
+one without, by removing the object casting the
+shadow.
+SRD [69] comprises 2,680 training and 408 test-
+ing pairs of shadow and shadow-free images.
+This dataset does not feature manually annotated
+masks. Like ISTD, SRD includes shadows cast by
+various objects, then removing the shadow source
+to capture the corresponding shadow-free image.
+Shadow images are captured under different illu-
+mination conditions, such as varied weather con-
+ditions or different times of the day, to incorporate
+both hard and soft shadows into the dataset.
+ISTD
+and
+ISTD+
+[48, 90]
+The
+ISTD
+dataset [90] comprises 1330 training and 540
+testing triplets, consisting of shadow images,
+corresponding manually annotated masks, and
+shadow-free images. This dataset primarily com-
+prises outdoor scenes and predominantly con-
+tains hard shadows. Shadows are cast by various
+objects not present in the scene, and to capture
+the corresponding shadow-free image, the shadow
+source is removed. The Adjusted ISTD (ISTD+)
+dataset [48] addresses illumination inconsisten-
+cies between the shadow and shadow-free images
+present in the original ISTD dataset.
+USR [35] is an unpaired shadow removal dataset
+consisting of 2,445 shadow images and 1,770
+shadow-free images. It features a diverse range
+of scenes, encompassing over a thousand different
+environments where shadows are cast by various
+objects such as trees, buildings, traffic signs, peo-
+ple, umbrellas, railings, and more. The dataset
+includes 1,956 images for training and 489 for
+testing, utilizing all 1,770 shadow-free images
+exclusively for training.
+SBU
+[84] comprises 5,000 images depicting
+scenes with shadows, spanning diverse environ-
+ments such as urban areas, beaches, mountains,
+roads, parks, snowscapes, animals, vehicles, and
+houses. The collection includes various types of
+photographs, including aerial shots, landscapes,
+close-ups, and selfies. Approximately 85% of the
+images are allocated to the training set, with
+the remaining 15% reserved for testing. Among
+the 700 test images, detailed annotations of
+shadow masks ensure pixel accuracy. During train-
+ing image annotation, a quick method involving
+sparse strokes on shadow areas was employed for
+efficient labeling of a large image set.
+Video [49] shadow removal dataset comprises
+8 videos featuring static scenes with unchanging
+backgrounds. Each video includes a corresponding
+Vmax frame, which serves as the pseudo shadow-
+free reference, created by capturing the maximum
+intensity values at each pixel location throughout
+the video. The mask for moving shadows includes
+pixels found in both shadowed and non-shadowed
+areas, defining the evaluation region. The moving
+shadow mask is generated by applying a threshold
+of 80.
+4.7 Evaluation Metrics
+• PSNR and RMSE. PSNR measures the ratio
+between the maximum signal power and the
+power of noise affecting image fidelity, while
+RMSE calculates the square root of the average
+squared difference between corresponding pix-
+els of the reference and reconstructed images.
+Both metrics quantify the discrepancy between
+images, with lower values indicating higher dis-
+tortion or error.
+• MAE measures the average magnitude of
+errors between predicted shadow-free image and
+ground truth. It calculates the absolute dif-
+ference between each predicted value and its
+
+Table 3 Quantitative comparisons of the shadow removal results on SRD dataset [69] in terms of RMSE, PSNR (in dB),
+and SSIM. Highlighted in red , yellow , and green cells are the best, second-best, and third-best results, respectively. §
+indicates that the results are directly quoted from the original paper as their code implementation was not made available.
+Learning
+Method
+Shadow Region (S)
+Non-Shadow Region (NS)
+All Image (ALL)
+PSNR↑
+SSIM ↑
+RMSE↓
+PSNR↑
+SSIM ↑
+RMSE↓
+PSNR↑
+SSIM↑
+RMSE↓
+LPIPS↓
+input
+18.96
+0.871
+36.69
+31.47
+0.975
+4.83
+18.19
+0.830
+14.05
+0.1899
+TR
+Guo et al. [28]
+-
+-
+29.89
+-
+-
+6.47
+-
+-
+12.60
+-
+SL
+DeshadowNet [69]
+-
+-
+11.78
+-
+-
+4.84
+-
+-
+6.64
+-
+DSC [34]
+30.65
+0.960
+8.62
+31.94
+0.965
+4.41
+27.76
+0.903
+5.71
+0.1141
+DHAN [4]
+33.67
+0.978
+8.94
+34.79
+0.979
+4.80
+30.51
+0.949
+5.67
+0.0666
+AEF [18]
+32.26
+0.966
+9.55
+31.87
+0.945
+5.74
+28.40
+0.893
+6.50
+0.0894
+EMDN [113]
+34.94
+0.980
+7.44
+35.85
+0.982
+3.74
+31.72
+0.952
+4.79
+0.0980
+BMNet [112]
+35.05
+0.981
+6.61
+36.02
+0.982
+3.61
+31.69
+0.956
+4.46
+0.0549
+ShadowFormer [25]
+35.55
+0.982
+6.14
+36.82
+0.983
+3.54
+32.46
+0.957
+4.28
+0.0572
+ShadowDiffusion [26]
+38.72
+0.987
+4.98
+37.78
+0.985
+3.44
+34.73
+0.970
+3.63
+0.0359
+Inpaint4Shadow [52]
+36.73
+0.985
+5.70
+36.70
+0.985
+3.27
+33.27
+0.967
+3.81
+0.0475
+DeS3 [39]
+37.91
+0.986
+5.27
+37.45
+0.984
+3.03
+34.11
+0.968
+3.56
+0.0338
+HomoFormer [98]
+38.81
+0.987
+4.25
+39.45
+0.988
+2.85
+35.37
+0.972
+3.33
+0.0419
+UL
+DC-ShadowNet [38]
+34.00
+0.975
+7.70
+35.53
+0.981
+3.65
+31.53
+0.955
+4.65
+0.1285
+SSL
+ARGAN§ [8]
+-
+-
+6.35
+-
+-
+4.46
+-
+-
+5.31
+-
+Table 4 Quantitative comparisons of the shadow removal results on ISTD+ dataset [48,90] in terms of RMSE, PSNR (in
+dB), SSIM, and LPIPS. † indicates that the methods use the ground truth shadow mask provided by ISTD+ dataset as
+input.
+Learning Method
+Shadow Region (S)
+Non-Shadow Region (NS)
+All Image (ALL)
+PSNR↑SSIM ↑RMSE↓PSNR↑SSIM ↑
+RMSE↓
+PSNR↑SSIM↑RMSE↓LPIPS↓
+input
+20.83
+0.93
+39.01
+37.46
+0.985
+2.40
+20.46
+0.894
+8.40
+0.1431
+TR
+Guo et al. [28]
+26.89
+0.960
+21.38
+35.56
+0.976
+3.09
+25.52
+0.925
+6.09
+0.0966
+SL
+SP+M-Net [48]
+37.60
+0.990
+5.91
+36.02
+0.976
+2.99
+32.94
+0.962
+3.46
+0.0586
+Param+M+D-Net [49]
+33.09
+0.983
+9.67
+35.35
+0.978
+2.82
+30.15
+0.951
+3.94
+0.0662
+AEF [18]
+36.04
+0.978
+6.55
+31.16
+0.892
+3.77
+29.45
+0.861
+4.23
+0.0615
+BMNet† [112]
+37.87
+0.991
+5.62
+37.51
+0.985
+2.45
+33.98
+0.972
+2.97
+0.0305
+SG-ShadowNet [86]
+36.80
+0.990
+5.93
+35.57
+0.978
+2.92
+32.46
+0.962
+3.41
+0.0430
+Inpaint4Shadow [52]
+38.10
+0.990
+6.09
+37.66
+0.981
+2.82
+34.16
+0.967
+3.35
+0.0675
+ShadowFormer† [25]
+39.48
+0.992
+5.23
+38.82
+0.983
+2.30
+35.46
+0.971
+2.78
+0.0260
+ShadowDiffusion† [26]
+39.69
+0.992
+4.97
+38.89
+0.987
+2.28
+35.67
+0.975
+2.72
+0.0234
+HomoFormer† [98]
+39.49
+0.993
+4.73
+38.75
+0.984
+2.23
+35.35
+0.975
+2.64
+0.0259
+UL
+DC-ShadowNet [38]
+31.06
+0.976
+12.62
+27.03
+0.961
+6.82
+25.03
+0.926
+7.77
+0.1420
+ZSL
+G2R-ShadowNet [59]
+33.58
+0.979
+8.82
+35.52
+0.976
+2.89
+30.52
+0.944
+3.86
+0.0662
+BCDiff [27]
+35.71
+0.986
+7.61
+36.39
+0.981
+2.66
+32.11
+0.959
+3.47
+0.0518
+corresponding ground truth value, then aver-
+ages these absolute differences to provide a
+single score.
+• SSIM [94] is a metric evaluating similarity
+between images, considering perceptual differ-
+ences, and treating image degradation as a
+perceived alteration in structural information.
+It measures luminance, contrast, and structure,
+providing a score between -1 and 1, with 1
+indicating perfect structural similarity.
+• LPIPS [106] is a perceptual similarity metric
+that evaluates differences between images based
+on their perceived similarity by a deep neu-
+ral network. It measures the distance between
+feature representations of images, capturing
+both low-level and high-level features. Lower
+LPIPS scores indicate greater perceptual simi-
+larity, making it effective for tasks where human
+judgment is crucial, like image generation and
+restoration.
+• NIQE [63] is a no-reference metric for estimat-
+ing image quality. It analyzes local statistics
+like luminance and contrast, comparing them to
+those of natural images to compute a quality
+score. Higher NIQE scores indicate lower image
+quality. It’s useful for tasks like compression
+and denoising but may not perform as well on
+structured or synthetic images.
+
+Table 5 Quantitative comparisons on LRSS dataset [23] and UIUC [28] in terms of RMSE, PSNR (in dB), SSIM, and
+LPIPS.
+Learning
+Method
+LRSS
+UIUC
+PSNR↑
+SSIM ↑
+RMSE↓
+PSNR↑
+SSIM ↑
+RMSE↓
+input
+16.43
+0.886
+15.98
+20.85
+0.803
+13.97
+SP+M-Net [48]
+21.77
+0.927
+11.18
+28.23
+0.866
+7.13
+EMDN [113]
+19.26
+0.882
+15.71
+25.56
+0.775
+13.07
+BMNet [112]
+14.19
+0.048
+50.79
+16.86
+0.679
+45.68
+SL
+Inpaint4Shadow [52]
+19.59
+0.805
+13.79
+27.77
+0.849
+7.82
+ShadowFormer [25]
+27.01
+0.957
+6.37
+28.96
+0.874
+6.57
+ShadowDiffusion [26]
+28.37
+0.955
+6.01
+29.02
+0.880
+7.05
+HomoFormer [98]
+25.86
+0.951
+6.98
+29.08
+0.870
+6.81
+UL
+DC-ShadowNet [38]
+20.89
+0.902
+12.55
+24.85
+0.849
+9.51
+ZSL
+G2R-ShadowNet [59]
+20.90
+0.901
+9.99
+27.56
+0.858
+7.43
+BCDiff [27]
+22.13
+0.922
+10.68
+26.81
+0.852
+7.96
+5 Benchmarking and
+Empirical Analysis
+This section provides empirical analysis and high-
+lights some key challenges in deep learning based
+shadow removal methods. We conduct extensive
+evaluations on several public benchmarks. We
+select a number of recent shadow removal algo-
+rithms from different categories to be evaluated:
+1. Multi-context
+Embedding,
+DeShad-
+owNet [69]
+2. Attentive Recurrent GAN, ARGAN [8]
+3. Direction-aware Spatial Context, DSC [34]
+4. Shadow Parameter Estimation and Matte
+Prediction Network, SP+M-Net [48]
+5. Dual
+Hierarchical
+Aggregation
+Network,
+DHAN [4]
+6. Generation to Removal, G2R-ShadowNet [59]
+7. Domain
+Classifier
+Guided
+Net,
+DC-ShadowNet [38]
+8. Auto-Exposure Fusion, AEF [18]
+9. Efficient
+Model-Driven
+Network,
+EMDN [113]
+10. Bijective Mapping Network, BMNet [112]
+11. Context Transformer, ShadowFormer [25]
+12. Unrolling-inspired Diffusion, ShadowDiffu-
+sion [26]
+13. Boundary-aware
+Conditional
+Diffusion,
+BCDiff [27]
+14. Diffusion-based Soft & Self Shadow Removal,
+DeS3 [39]
+15. Homogenized Transformer, HomoFormer [98]
+including
+eleven
+supervised
+learning-based
+methods
+(DeShadowNet,
+DSC,
+SP+M-Net,
+DHAN, AEF, EMDN, BMNet, ShadowFormer,
+ShadowDiffusion, SeS3, HomoFormer), two zero-
+shot learning-based methods (G2R-ShadowNet,
+BCDiff),
+one
+unsupervised
+learning-based
+method (DC-ShadowNet), one semi-supervised
+learning-based method (ARGAN). To ensure fair
+comparisons, we utilize publicly available code for
+all the methods under consideration to generate
+their results. We leverage full-reference metrics
+including PSNR, SSIM, RMSE, and LPIPS for
+those testsets with ground truth shadow-free
+images, i.e., ISTD+ [48,90], SRD [69], LRSS [23],
+and UIUC [28]. The results of shadow removal
+from all methods are either sourced from their
+original papers or replicated using their official
+implementations.
+We
+standardize
+the
+evalua-
+tion of shadow removal results to a resolution
+of 256 × 256 following most shadow removal
+methods [18,26,112,113].
+5.1 Benchmarking Results
+Tables 3&4 show the quantitative results on
+the testsets over ISTD+, and SRD, respectively.
+When the distribution of testing data is very
+similar to that of training data, supervised meth-
+ods achieve better performance. Typically, some
+recent transformer or diffusion based methods
+achieved state-of-the-art over ISTD+ and SRD
+datasets. To further demonstrate the advan-
+tages and disadvantages of different methods,
+Figures 8&9 present the visual examples of the
+shadow removal results on SRD dataset. For hard
+shadow removal, the results often exhibit notice-
+able boundary artifacts due to the difficulty in
+distinguishing sharp shadow edges from struc-
+tural edges in the original scene, as illustrated in
+
+(a) Input
+(b) Mask (Residual)
+(c) Mask (DHAN)
+(d) DSC
+(e) DHAN
+(f) AEF
+(g) EMDN
+(h) BMNet
+(i) DC-ShadowNet
+(j) SG-ShadowNet
+(k) Inpaint4Shadow
+(l) ShadowDiffusion
+(m) DeS3
+(n) HomoFormer
+(o) Reference
+Fig. 8 Visual comparison with different shadow removal methods sampled from test set of SRD [69].
+the lower right corner of Figure 8. It also high-
+lights that in complex scenarios involving multiple
+shadow types, such as self-shadows and cast shad-
+ows, certain shadow regions are often overlooked
+by shadow detectors. This oversight results in sig-
+nificant residual shadows evident in the outputs of
+most methods. Inaccurate masks can readily yield
+incorrect results across all types of shadows. Exist-
+ing methods have utilized a range of techniques,
+including joint mask refinement [26], regional clas-
+sification [39], shadow matte prediction [48], to
+tackle the issue of mask inaccuracy, which enable
+better processing of ignored regions.
+5.2 Generalization Capability
+To further assess the generalization capabilities of
+current methods, we utilize the LRSS and UIUC
+datasets as our evaluation sets. These datasets are
+specifically chosen because they lack large-scale
+paired training data, enabling us to rigorously test
+how well the methods perform in scenarios where
+there is a distinct distribution difference between
+training and testing data. For the LRSS dataset,
+we binarize the residuals of shadow-free images
+and shadow images to generate mask inputs for
+methods that require a shadow mask. For the
+UIUC dataset, we utilize the ground truth masks
+provided by the dataset. To ensure a fair com-
+parison, we consistently use the ISTD+ training
+set to train all methods. The performances of
+most shadow removal methods significantly deteri-
+orate when transferring to testing data that differs
+markedly from the training data. For instance,
+models trained on pairs from ISTD+ encounter
+difficulties in effectively handling shadow images
+from the soft shadow dataset LRSS, as illustrated
+in Table 5. This is because the ISTD+ dataset
+predominantly consists of hard shadow types and
+lacks soft shadow and self-shadow samples. On the
+contrary, those unsupervised or zero-shot learn-
+ing methods may have better generalization abil-
+ity to the unseen scenarios. Some methods, like
+
+(a) Input
+(b) Mask (Residual)
+(c) Mask (DHAN)
+(d) DSC
+(e) DHAN
+(f) AEF
+(g) EMDN
+(h) BMNet
+(i) DC-ShadowNet
+(j) SG-ShadowNet
+(k) Inpaint4Shadow
+(l) ShadowDiffusion
+(m) DeS3
+(n) HomoFormer
+(o) Reference
+Fig. 9 Visual comparison with different shadow removal methods sampled from test set of SRD [69].
+DC-ShadowNet, considered the classification of
+shadow types can have a better robustness cross
+various shadow types. ShadowDiffusion employed
+the mask refinement as the auxiliary branch to
+achieve a better robustness to soft shadow pro-
+cessing.
+5.3 Computational Complexity
+In order to provide a comprehensive assessment of
+deep learning-based shadow removal techniques,
+we conduct a comparative analysis of the com-
+putational complexity of various state-of-the-art
+methods, as detailed in Table 6, including run-
+time, training parameters, and FLOPs over 100
+images of size 256 × 256 using one NVIDIA
+
+Table 6 Quantitative comparisons of the algorithms’ computational efficiency in terms of runtime (in second), number of
+trainable parameters (#Parameters) (in M), and FLOPs (in G).
+Learning
+Method
+RunTime↓
+#Parameters ↓
+FLOPs↓
+Platform
+SP+M-Net [48]
+0.023
+141.18
+61.52
+PyTorch
+DHAN [4]
+0.283
+21.75
+262.87
+TensorFlow
+EMDN [113]
+0.015
+10.06
+56.29
+PyTorch
+BMNet [112]
+0.036
+0.37
+10.99
+PyTorch
+SL
+ShadowFormer [25]
+0.031
+11.35
+64.60
+PyTorch
+Inpaint4Shadow [52]
+0.006
+14.98
+81.18
+PyTorch
+ShadowDiffusion [26]
+0.723
+60.74
+937.15
+PyTorch
+HomoFormer [98]
+0.042
+17.81
+35.63
+PyTorch
+UL
+DC-ShadowNet [38]
+0.008
+10.59
+52.55
+PyTorch
+ZSL
+G2R-ShadowNet [59]
+0.010
+22.76
+113.93
+PyTorch
+BCDiff [27]
+31.446
+276.41
+139218.75
+PyTorch
+RTX
+A5000
+GPU.
+Inpaint4Shadow
+[52]
+and
+DC-ShadowNet [38] have the shortest runtimes.
+BMNet [112] employs a highly efficient architec-
+ture based on lightweight invertible blocks, result-
+ing in significantly fewer model parameters and
+lower FLOPs. Some methods use multiple sub-
+networks to perform multi-stage processing, which
+inevitably requires multiples of the parameters
+and computational load, such as SP+M-Net [48].
+Specially, diffusion-based methods, such as Shad-
+owDiffusion [26] and BCDiff [27], require iterative
+denoising steps. Although multi-stage methods
+can achieve great performance, they require sig-
+nificantly increased computational complexity and
+processing time, making them impractical for
+many applications.
+6 Shadow Removal
+Applications
+This section provides an overview of applica-
+tions related to shadow removal and discusses
+its necessity, including shadow generation and
+shadow-related attacks.
+6.1 Shadow Generation
+Shadow generation and synthesis typically involve
+the process of creating or simulating shadows in
+digital images or computer graphics. Similarly to
+shadow removal, shadow generation serves as an
+important application, which can primarily be
+divided into the following two aspects according
+to their subsequent applications: (1) Incorporat-
+ing a foreground object into a background image
+to create a composite image relies heavily on the
+presence of shadows. Shadows are pivotal in ren-
+dering scenes realistically as they convey depth,
+perspective, and illumination. (2) Additionally,
+shadow generation can aid in simulating large-
+scale paired images that include both shadows and
+shadow-free counterparts. This process is achieved
+at a minimal expense, contributing significantly to
+data augmentation.
+Image
+composition.
+Image
+composition
+involves inserting a foreground object into a
+background image to create a composite image.
+However, the quality of composite images can be
+greatly affected by inconsistencies between the
+foreground and background, including appear-
+ance, geometric, and semantic disparities. Shadow
+discrepancies represent a common issue in image
+composition, contributing to appearance incon-
+sistencies. Therefore, shadow generation becomes
+essential to produce plausible shadows for fore-
+ground objects, enhancing the realism of the
+composite image. Hong et al. [33] introduced a
+manually annotated dataset alongside a shadow
+synthesis technique capable of predicting shadow
+masks. This method leverages illumination infor-
+mation from the background and employs an
+illumination model to estimate shadow parame-
+ters. However, manually removing shadows from
+scenes entails considerable cost. Subsequently,
+Tao et al. [80] proposed utilizing rendering tech-
+niques for 3D scenes to generate large-scale paired
+shadow/shadow-free images. They developed a
+two-stage
+network
+incorporating
+decomposed
+mask prediction and attentive shadow filling.
+Dataset augmentation. Due to the difficulty in
+obtaining extensive datasets for shadow removal,
+numerous methods in the field have opted to use
+
+(a) Input
+(b) Mask (Residual)
+(c) SP+M-Net
+(d) EMDN
+(e) G2R-ShadowNet
+(f) Inpaint4Shadow
+(g) ShadowFormer
+(h) ShadowDiffusion
+(i) HomoFormer
+(j) GT
+Fig. 10 Visual comparison with different shadow removal methods sampled from test set of LRSS [23].
+(a) Input
+(b) Mask (Residual)
+(c) SP+M-Net
+(d) EMDN
+(e) G2R-ShadowNet
+(f) Inpaint4Shadow
+(g) ShadowFormer
+(h) ShadowDiffusion
+(i) HomoFormer
+(j) GT
+Fig. 11 Visual comparison of the results using different shadow removal methods, sampled from test set of UIUC [28].
+the generation or synthesis process to supple-
+ment their training data. Gryka et al. [23] utilized
+graphics tools to produce shadow images, while
+Sidorov et al. [77] constructed a shadow dataset by
+manipulating lighting within a video game. Nev-
+ertheless, computer-generated scenes and shad-
+ows often exhibit notable disparities from natu-
+ral scenes [48]. To bridge this disparity, several
+methodologies [4, 35, 48] have suggested employ-
+ing Generative Adversarial Networks (GANs) to
+produce adversarial shadow images, aiming to
+enhance the realism and authenticity of synthe-
+sized shadows. This approach leverages the adver-
+sarial training process to refine the quality and
+fidelity of synthesized shadows, ultimately enhanc-
+ing their realism and alignment with natural
+scenes. Another category of methods (referenced
+
+in [27,36]) has utilized physical illumination mod-
+els to simulate shadows with varying intensities,
+operating under the practical assumption that all
+occluding objects are situated outside the cam-
+era’s field of view. This non-learning approach
+can be seamlessly integrated into existing training
+paradigms on-the-fly, offering a computationally
+inexpensive solution.
+6.2 Shadow-related Attacks
+With deep learning-based methods becoming the
+predominant solution for shadow removal, con-
+cerns regarding model-related robustness, such as
+adversarial robustness, have increasingly emerged
+within the community.
+More recently, adversarial robustness in the
+physical domain has gained popularity due to its
+practical applications. However, existing adversar-
+ial examples are generated in a “sticker-pasting”
+strategy, which often falls short in producing
+imperceptible perturbation. In contrast, shadow,
+as a ubiquitous natural phenomenon, has the
+potential to serve as a non-invasive adversar-
+ial perturbation. Zhong et al. [110] propose a
+novel optical adversarial attack that generates
+naturalistic shadow patterns on real-world images
+under a black box setting. As a consequence,
+they successfully demonstrated that shadow could
+achieve stealthy attacks that significantly misled
+the prediction of deep networks in both digital-
+and physical- settings. Another line of research
+focuses on evaluating the robustness of existing
+deep shadow removal networks. Due to the signifi-
+cant inconsistency of illumination between shadow
+and non-shadow regions, traditional adversarial
+attacks such as PGD [61] fail to generate visu-
+ally imperceptible noise, especially in the shadow
+region. Motivated by this, Wang et al. [88] pro-
+pose a shadow-adaptive attack where the attack
+budget is adaptively aligned with each pixel’s
+intensity. Thus, the generated adversarial pertur-
+bation could be more aggressive in non-shadow
+regions while remaining stealthy in the shadow
+region. With the merit of such shadow-adaptive
+attacks, they further establish the first benchmark
+evaluating the adversarial robustness of existing
+deep shadow removal networks.
+7 Future Research Directions
+As observed from the experimental results pre-
+sented in Section 5, shadow removal remains a
+challenging research topic, particularly concerning
+generalization ability. There remains considerable
+potential for improvement. This section suggests
+potential future research directions as follows:
+7.1 Generalized Shadow Removal
+1. From supervised to unsupervised/zero-
+shot learning. While supervised learning-
+based shadow removal methods have demon-
+strated superior performance within spe-
+cific datasets, their effectiveness diminishes
+significantly when applied to testing cases
+with distributions distinct from the training
+data. However, unsupervised/zero-shot learn-
+ing methods offer a promising alternative. By
+harnessing the ability to capture the under-
+lying structure and characteristics of data
+without necessitating labeled examples, these
+methods facilitate enhanced generalization to
+unseen, real-world scenarios.
+2. Exploiting knowledge from pre-trained
+model. Leveraging knowledge from pre-
+trained models, such as large language mod-
+els [41, 82], stable diffusion [7, 68], and
+SAM (Spatially Adaptive Denoising Net-
+work)
+[44],
+holds
+immense
+potential
+for
+advancing shadow removal techniques. These
+models, having been trained on vast amounts
+of diverse data, encode rich representations
+of the underlying structure and semantics of
+the input data. By fine-tuning or incorpo-
+rating these pre-trained models into shadow
+removal frameworks, researchers can tap into
+this wealth of knowledge to improve the
+quality and robustness of shadow removal
+algorithms.
+7.2 Interactive Shadow Removal
+Interactive shadow removal [19, 20] engages users
+in the shadow removal process through a user-
+friendly interface that allows real-time adjust-
+ments and feedback. This approach provides users
+with greater control and customization, enabling
+them to tailor the results to their specific pref-
+erences and needs. Although deep learning-based
+
+methods have shown promise, their application in
+this interactive domain remains less explored.
+1. User-friendly
+input.
+Existing
+methods
+have overly stringent requirements for the
+input mask, or they rely on the off-the-shelf
+shadow detectors to generate the mask. How-
+ever, using a pre-trained shadow detector
+may lead to a domain gap when applied
+to cases with different distributions from
+the training data, resulting in inaccurate
+shadow detection that could mislead the sub-
+sequent shadow removal network. Therefore,
+by utilizing simple user inputs such as clicks,
+strokes, or painted masks as prompts, the
+shadow removal network can effectively guide
+the process.
+2. Real-time
+adjustment.
+The
+shadow
+removal process is optimized for real-time
+performance, ensuring that the results are
+generated quickly enough to be displayed
+without noticeable delay. This may involve
+leveraging
+hardware
+acceleration,
+paral-
+lel processing, or optimized algorithms to
+achieve fast computation speeds. Addition-
+ally, in interactive shadow removal systems,
+users may provide feedback or make adjust-
+ments in real-time to refine the shadow
+removal results.
+3. Multiple shadows process. In real-world
+scenarios, it’s common to encounter multi-
+ple shadow regions, stemming from various
+sources such as multiple occluders or diverse
+light sources. When tackling these scenarios,
+users often seek the flexibility to selectively
+remove portions of these shadows based on
+user-defined input cues. This could involve
+removing shadows cast by specific objects or
+adjusting the intensity of shadows in certain
+areas, empowering users to tailor the shadow
+removal process to their specific needs and
+preferences.
+7.3 More Comprehensive
+Benchmark
+Currently, the field of shadow removal faces a
+significant challenge due to the absence of a
+standardized evaluation benchmark. Existing test
+datasets for shadow removal may not adequately
+represent the diversity and complexity of real-
+world shadow scenarios. Some test data may be
+relatively straightforward to handle, whose distri-
+butions are distinct from real-world cases. This
+discrepancy further complicates the evaluation
+process and undermines the reliability of com-
+parative studies. Hence, there is a clear need
+for a comprehensive benchmark that encompasses
+large-scale test samples, representing a diverse
+range of scenes including indoor and outdoor
+environments, as well as challenging lighting con-
+ditions such as various types of light sources and
+multiple shadows. Establishing such a benchmark
+would enable researchers to conduct fair and rig-
+orous evaluations of shadow removal methods,
+facilitating advancements in the field.
+7.4 Non-Reference Evaluation
+Metric
+Collecting paired shadow and shadow-free images
+poses a significant challenge in practical scenar-
+ios, mainly due to the complexities involved in
+capturing images under diverse lighting condi-
+tions. Furthermore, prevailing benchmarks heavily
+rely on reference metrics such as PSNR, RMSE,
+and SSIM for evaluation, which may not ade-
+quately account for scenarios where ground truth
+data or paired images are scarce or inaccessible.
+In instances where large-scale shadow datasets
+featuring unpaired images, or those primarily
+collected for shadow detection purposes (e.g.,
+SBU [35] and USR [84]), are available, leverag-
+ing them to the fullest extent for benchmark-
+ing becomes crucial. However, in such cases, the
+necessity for new non-reference metrics becomes
+apparent. These metrics offer a vital solution to
+the limitations posed by traditional evaluation
+methods, providing a more holistic and adaptable
+approach to image assessment. Introducing novel
+non-reference metrics addresses the shortcomings
+of traditional evaluation methods, offering a more
+comprehensive and adaptable approach to image
+assessment.
+7.5 Extension to Video Shadow
+Removal
+Current video shadow removal methods typically
+involve processing each frame of a video indepen-
+dently using image shadow removal algorithms,
+as mentioned by [27,59]. This approach, however,
+tends to neglect the temporal dimension of the
+
+video data. By treating each frame in isolation,
+these methods may fail to capture and exploit the
+temporal coherence present in video sequences.
+When image-based algorithms are directly applied
+to videos, they often produce artifacts and incon-
+sistencies across frames. This is because they do
+not account for the temporal context and varia-
+tions in lighting conditions that occur over time.
+As a result, the shadow removal process may intro-
+duce flickering or other temporal artifacts, leading
+to unsatisfactory results. Therefore, there remains
+a significant gap in the field of video shadow
+removal, calling for further research and develop-
+ment. Efforts are needed to explore novel algo-
+rithms that can effectively leverage the temporal
+dimension of video data.
+7.6 Large-Scale Training Dataset
+While numerous training datasets are available for
+shadow removal, their scale and diversity in rep-
+resenting various shadow categories do not fully
+capture the complexity of real shadow degra-
+dations, as indicated in Table 2. Current deep
+shadow removal models, as discussed in Section 5,
+encounter challenges in achieving satisfactory per-
+formance when confronted with shadow images
+captured in real-world scenarios. Moreover, the
+resolution of existing datasets is typically low,
+such as 480 × 640, whereas real-world scenarios
+often involve high-resolution imagery, such as 2k
+or 4k. Models trained on low-resolution data often
+struggle to generalize directly to high-resolution
+scenarios. Therefore, additional efforts are needed
+to explore the acquisition of large-scale, high-
+resolution, and diverse real-world paired shadow
+removal training datasets.
+8 Conclusion
+In this paper, we present a comprehensive sur-
+vey of deep learning-based single-image shadow
+removal approaches. We first discuss the forma-
+tion of shadows in the real world and summarize
+the challenges of the shadow removal task. Build-
+ing upon this, we explain how existing methods
+address these challenges from various perspec-
+tives, including training strategies, model archi-
+tecture design, integration of physical models,
+and leveraging knowledge from detection models.
+We also conduct a comprehensive evaluation of
+existing methods with different learning strategies
+to explore their advantages and disadvantages.
+Based on the experimental results, we identify
+several open problems that still require further
+development, such as improving generalization
+to real-world cases, interactive shadow removal,
+more comprehensive benchmarks, video shadow
+removal, and large-scale training datasets.
+Declarations
+Conflict of interest. The authors declare that
+they have no known competing financial interests
+or personal relationships that could have appeared
+to influence the work reported in this paper.
+Availability of data and materials. This work
+does not propose a new dataset. All the datasets
+we used are publicly available.
+Code
+availability.
+The
+related
+bench-
+mark
+code
+and
+repository
+of
+this
+work
+is
+released
+at
+https://github.com/GuoLanqing/
+Awesome-Shadow-Removal.
+References
+[1] Eli Arbel and Hagit Hel-Or.
+Texture-
+preserving shadow removal in color images
+containing curved surfaces. In 2007 IEEE
+Conference on Computer Vision and Pat-
+tern Recognition, pages 1–8. IEEE, 2007.
+[2] Zipei Chen, Chengjiang Long, Ling Zhang,
+and Chunxia Xiao. Canet: A context-aware
+network for shadow removal. In Proceedings
+of the IEEE/CVF international conference
+on computer vision, pages 4743–4752, 2021.
+[3] Rita Cucchiara, Costantino Grana, Massimo
+Piccardi, and Andrea Prati. Detecting mov-
+ing objects, ghosts, and shadows in video
+streams. IEEE transactions on pattern anal-
+ysis and machine intelligence, 25(10):1337–
+1342, 2003.
+[4] Xiaodong Cun, Chi-Man Pun, and Cheng
+Shi. Towards ghost-free shadow removal via
+dual hierarchical aggregation network and
+shadow matting gan. In AAAI, pages 10680–
+10687, 2020.
+[5] Shibam Das and Ambika Aery. A review:
+shadow detection and shadow removal from
+images.
+International Journal of Engi-
+neering Trends and Technology (IJETT),
+4(5):1764–1767, 2013.
+
+[6] Jia Deng, Wei Dong, Richard Socher, Li-Jia
+Li, Kai Li, and Li Fei-Fei. Imagenet: A large-
+scale hierarchical image database. In 2009
+IEEE Conference on Computer Vision and
+Pattern Recognition, pages 248–255. Ieee,
+2009.
+[7] Stable
+Diffusion.
+Stable
+diffusion
+2-1
+base.
+https://huggingface.co/stabilityai/
+stable-diffusion-2-1-base/blob/main/
+v2-1 512-ema-pruned.ckpt, 2022.
+[8] Bin Ding, Chengjiang Long, Ling Zhang,
+and
+Chunxia
+Xiao.
+Argan:
+Attentive
+recurrent generative adversarial network for
+shadow detection and removal.
+In Pro-
+ceedings of the IEEE/CVF international
+conference on computer vision, pages 10213–
+10222, 2019.
+[9] Alexey Dosovitskiy, Lucas Beyer, Alexander
+Kolesnikov,
+Dirk
+Weissenborn,
+Xiao-
+hua Zhai, Thomas Unterthiner, Mostafa
+Dehghani,
+Matthias
+Minderer,
+Georg
+Heigold, Sylvain Gelly, et al.
+An image
+is worth 16x16 words: Transformers for
+image recognition at scale. In International
+Conference on Learning Representations,
+2020.
+[10] Graham
+Finlayson,
+Maryam
+Moham-
+madzadeh Darrodi, and Michal Mackiewicz.
+Rank-based
+camera
+spectral
+sensitivity
+estimation. JOSA A, 33(4):589–599, 2016.
+[11] Graham D Finlayson, Mark S Drew, and
+Cheng Lu. Entropy minimization for shadow
+removal. International Journal of Computer
+Vision, 85(1):35–57, 2009.
+[12] Graham D Finlayson, Steven D Hordley,
+and Mark S Drew.
+Removing shadows
+from images. In Computer Vision—ECCV
+2002: 7th European Conference on Com-
+puter Vision Copenhagen, Denmark, May
+28–31, 2002 Proceedings, Part IV 7, pages
+823–836. Springer, 2002.
+[13] Graham D Finlayson, Steven D Hordley,
+and Mark S Drew. Removing shadows from
+images using retinex. In Color and imaging
+conference, volume 10, pages 73–79. Society
+of Imaging Science and Technology, 2002.
+[14] Graham
+D
+Finlayson,
+Steven
+D
+Hord-
+ley, Cheng Lu, and Mark S Drew.
+On
+the
+removal
+of
+shadows
+from
+images.
+IEEE transactions on pattern analysis and
+machine intelligence, 28(1):59–68, 2005.
+[15] Cl´ement
+Fredembach
+and
+Graham Fin-
+layson.
+Hamiltonian path-based shadow
+removal. In Proceedings of the 16th British
+Machine Vision Conference (BMVC), vol-
+ume 2, pages 502–511, 2005.
+[16] Clement
+Fredembach
+and
+Graham Fin-
+layson.
+Simple shadow remova.
+In 18th
+International Conference on Pattern Recog-
+nition (ICPR’06), volume 1, pages 832–835.
+IEEE, 2006.
+[17] Cl´ement Fredembach and Graham D Fin-
+layson.
+Fast re-integration of shadow free
+images. In 12th Color Imaging Conference:
+Color Science and Engineering Systems,
+Technologies, and Applications, 2004.
+[18] Lan Fu, Changqing Zhou, Qing Guo, Felix
+Juefei-Xu, Hongkai Yu, Wei Feng, Yang Liu,
+and Song Wang. Auto-exposure fusion for
+single-image shadow removal. In Proceedings
+of the IEEE/CVF conference on computer
+vision and pattern recognition, pages 10571–
+10580, 2021.
+[19] Han Gong and DP Cosker.
+Interactive
+shadow removal and ground truth for vari-
+able scene categories.
+In BMVC 2014-
+Proceedings of the British Machine Vision
+Conference 2014, 2014.
+[20] Han Gong and Darren Cosker.
+Interac-
+tive removal and ground truth for difficult
+shadow scenes. JOSA A, 33(9):1798–1811,
+2016.
+[21] Ian Goodfellow, Jean Pouget-Abadie, Mehdi
+Mirza, Bing Xu, David Warde-Farley, Sherjil
+Ozair, Aaron Courville, and Yoshua Bengio.
+Generative adversarial nets.
+In Advances
+in neural information processing systems,
+pages 2672–2680, 2014.
+[22] Ian Goodfellow, Jean Pouget-Abadie, Mehdi
+Mirza, Bing Xu, David Warde-Farley, Sherjil
+Ozair, Aaron Courville, and Yoshua Bengio.
+Generative adversarial networks. Communi-
+cations of the ACM, 63(11):139–144, 2020.
+[23] Maciej Gryka, Michael Terry, and Gabriel J
+Brostow. Learning to remove soft shadows.
+ACM Transactions on Graphics, 34(5):1–15,
+2015.
+[24] Chunle Guo, Chongyi Li, Jichang Guo,
+Chen
+Change
+Loy,
+Junhui
+Hou,
+Sam
+Kwong, and Runmin Cong. Zero-reference
+deep curve estimation for low-light image
+enhancement. In Proceedings of the IEEE
+
+Conference on Computer Vision and Pat-
+tern Recognition (CVPR), pages 1780–1789,
+2020.
+[25] Lanqing Guo, Siyu Huang, Ding Liu, Hao
+Cheng, and Bihan Wen.
+Shadowformer:
+Global context helps shadow removal.
+In
+Proceedings of the AAAI Conference on
+Artificial Intelligence, volume 37, pages 710–
+718, 2023.
+[26] Lanqing Guo, Chong Wang, Wenhan Yang,
+Siyu Huang, Yufei Wang, Hanspeter Pfis-
+ter, and Bihan Wen.
+Shadowdiffusion:
+When degradation prior meets diffusion
+model for shadow removal.
+In Proceed-
+ings of the IEEE/CVF Conference on Com-
+puter Vision and Pattern Recognition, pages
+14049–14058, 2023.
+[27] Lanqing Guo, Chong Wang, Wenhan Yang,
+Yufei Wang, and Bihan Wen.
+Boundary-
+aware divide and conquer: A diffusion-based
+solution for unsupervised shadow removal.
+In Proceedings of the IEEE/CVF Inter-
+national Conference on Computer Vision,
+pages 13045–13054, 2023.
+[28] Ruiqi Guo, Qieyun Dai, and Derek Hoiem.
+Paired regions for shadow detection and
+removal. IEEE transactions on pattern anal-
+ysis and machine intelligence, 35(12):2956–
+2967, 2012.
+[29] Ruize Han, Yiyang Gan, Likai Wang, Nan
+Li, Wei Feng, and Song Wang.
+Relat-
+ing view directions of complementary-view
+mobile cameras via the human shadow.
+International Journal of Computer Vision,
+131(5):1106–1121, 2023.
+[30] Shengfeng He, Bing Peng, Junyu Dong, and
+Yong Du. Mask-shadownet: Toward shadow
+removal via masked adaptive instance nor-
+malization. IEEE Signal Processing Letters,
+28:957–961, 2021.
+[31] Yingqing He, Yazhou Xing, Tianjia Zhang,
+and Qifeng Chen.
+Unsupervised portrait
+shadow removal via generative priors.
+In
+ACM International Conference on Multime-
+dia (ACM MM), 2021.
+[32] Jonathan Ho, Ajay Jain, and Pieter Abbeel.
+Denoising diffusion probabilistic models.
+Advances in Neural Information Processing
+Systems, 33:6840–6851, 2020.
+[33] Yan Hong, Li Niu, and Jianfu Zhang.
+Shadow generation for composite image in
+real-world scenes.
+In Proceedings of the
+AAAI conference on artificial intelligence,
+volume 36, pages 914–922, 2022.
+[34] Xiaowei Hu, Chi-Wing Fu, Lei Zhu, Jing
+Qin, and Pheng-Ann Heng. Direction-aware
+spatial context features for shadow detec-
+tion and removal.
+IEEE transactions on
+pattern analysis and machine intelligence,
+42(11):2795–2808, 2019.
+[35] Xiaowei Hu, Yitong Jiang, Chi-Wing Fu,
+and Pheng-Ann Heng.
+Mask-shadowgan:
+Learning to remove shadows from unpaired
+data.
+In Proceedings of the IEEE/CVF
+international
+conference
+on
+computer
+vision, pages 2472–2481, 2019.
+[36] Naoto
+Inoue
+and
+Toshihiko
+Yamasaki.
+Learning from synthetic shadows for shadow
+detection and removal. IEEE Transactions
+on Circuits and Systems for Video Technol-
+ogy, 31(11):4187–4197, 2020.
+[37] Hao
+Jiang,
+Qing
+Zhang,
+Yongwei
+Nie,
+Lei Zhu, and Wei-Shi Zheng.
+Learning
+to remove shadows from a single image.
+International Journal of Computer Vision,
+131(9):2471–2488, 2023.
+[38] Yeying Jin, Aashish Sharma, and Robby T
+Tan. Dc-shadownet: Single-image hard and
+soft shadow removal using unsupervised
+domain-classifier guided network.
+In Pro-
+ceedings of the IEEE/CVF International
+Conference
+on
+Computer
+Vision,
+pages
+5027–5036, 2021.
+[39] Yeying Jin, Wei Ye, Wenhan Yang, Yuan
+Yuan, and Robby T Tan.
+Des3: Adap-
+tive attention-driven self and soft shadow
+removal using vit similarity.
+In Proceed-
+ings of the AAAI Conference on Artificial
+Intelligence, volume 38, pages 2634–2642,
+2024.
+[40] Cl´audio
+Rosito
+Jung.
+Efficient
+back-
+ground subtraction and shadow removal
+for monochromatic video sequences. IEEE
+Transactions on Multimedia, 11(3):571–577,
+2009.
+[41] Enkelejda Kasneci, Kathrin Seßler, Ste-
+fan K¨uchemann, Maria Bannert, Daryna
+Dementieva, Frank Fischer, Urs Gasser,
+Georg Groh, Stephan G¨unnemann, Eyke
+H¨ullermeier, et al.
+Chatgpt for good? on
+opportunities and challenges of large lan-
+guage models for education. Learning and
+
+individual differences, 103:102274, 2023.
+[42] Bahjat
+Kawar,
+Michael
+Elad,
+Stefano
+Ermon, and Jiaming Song. Denoising diffu-
+sion restoration models. Advances in Neural
+Information Processing Systems, 35:23593–
+23606, 2022.
+[43] Salman H Khan, Mohammed Bennamoun,
+Ferdous Sohel, and Roberto Togneri. Auto-
+matic shadow detection and removal from
+a single image.
+IEEE transactions on
+pattern analysis and machine intelligence,
+38(3):431–446, 2015.
+[44] Alexander Kirillov, Eric Mintun, Nikhila
+Ravi, Hanzi Mao, Chloe Rolland, Laura
+Gustafson, Tete Xiao, Spencer Whitehead,
+Alexander C Berg, Wan-Yen Lo, et al.
+Segment anything.
+In Proceedings of the
+IEEE/CVF
+International
+Conference
+on
+Computer Vision, pages 4015–4026, 2023.
+[45] Shengjiang Kong, Weiwei Wang, Xiangchu
+Feng, and Xixi Jia.
+Deep red unfolding
+network for image restoration. IEEE Trans-
+actions on Image Processing, 31:852–867,
+2021.
+[46] Alex Krizhevsky, Ilya Sutskever, and Geof-
+frey E Hinton.
+Imagenet classification
+with deep convolutional neural networks.
+Advances in neural information processing
+systems, 25:1097–1105, 2012.
+[47] Edwin H Land. The retinex theory of color
+vision. Scientific american, 237(6):108–129,
+1977.
+[48] Hieu Le and Dimitris Samaras.
+Shadow
+removal via shadow image decomposition.
+In Proceedings of the IEEE/CVF Inter-
+national Conference on Computer Vision,
+pages 8578–8587, 2019.
+[49] Hieu Le and Dimitris Samaras.
+From
+shadow segmentation to shadow removal. In
+ECCV, 2020.
+[50] Yann
+LeCun,
+Bernard
+Boser,
+John
+S
+Denker,
+Donnie
+Henderson,
+Richard
+E
+Howard, Wayne Hubbard, and Lawrence D
+Jackel. Handwritten digit recognition with
+a back-propagation network.
+Advances
+in neural information processing systems,
+2:396–404, 1989.
+[51] Chongyi Li, Chunle Guo, Linghao Han, Jun
+Jiang, Ming-Ming Cheng, Jinwei Gu, and
+Chen Change Loy.
+Low-light image and
+video enhancement using deep learning: A
+survey. IEEE transactions on pattern anal-
+ysis and machine intelligence, 44(12):9396–
+9416, 2021.
+[52] Xiaoguang Li, Qing Guo, Rabab Abdelfat-
+tah, Di Lin, Wei Feng, Ivor Tsang, and Song
+Wang.
+Leveraging inpainting for single-
+image shadow removal.
+In Proceedings of
+the IEEE/CVF International Conference on
+Computer Vision, pages 13055–13064, 2023.
+[53] Jingyun Liang, Jiezhang Cao, Guolei Sun,
+Kai
+Zhang,
+Luc
+Van
+Gool,
+and
+Radu
+Timofte.
+Swinir: Image restoration using
+swin transformer.
+In Proceedings of the
+IEEE/CVF
+International
+Conference
+on
+Computer Vision, pages 1833–1844, 2021.
+[54] Yun-Hsuan Lin, Wen-Chin Chen, and Yung-
+Yu Chuang.
+Bedsr-net: A deep shadow
+removal network from a single document
+image.
+In Proceedings of the IEEE/CVF
+Conference on Computer Vision and Pat-
+tern Recognition, pages 12905–12914, 2020.
+[55] Jiawei Liu, Qiang Wang, Huijie Fan, Wen-
+tao Li, Liangqiong Qu, and Yandong Tang.
+A decoupled multi-task network for shadow
+removal. IEEE Transactions on Multimedia,
+2023.
+[56] Yuhao Liu, Zhanghan Ke, Ke Xu, Fang
+Liu,
+Zhenwei
+Wang,
+and
+Rynson
+WH
+Lau. Recasting regional lighting for shadow
+removal. In Proceedings of the AAAI Con-
+ference on Artificial Intelligence, volume 38,
+pages 3810–3818, 2024.
+[57] Ze
+Liu,
+Yutong
+Lin,
+Yue
+Cao,
+Han
+Hu, Yixuan Wei, Zheng Zhang, Stephen
+Lin,
+and
+Baining
+Guo.
+Swin
+trans-
+former:
+Hierarchical
+vision
+transformer
+using shifted windows.
+In Proceedings of
+the IEEE/CVF international conference on
+computer vision, pages 10012–10022, 2021.
+[58] Zhihao Liu, Hui Yin, Yang Mi, Mengyang
+Pu, and Song Wang.
+Shadow removal by
+a lightness-guided network with training on
+unpaired data. IEEE Transactions on Image
+Processing, 30:1853–1865, 2021.
+[59] Zhihao Liu, Hui Yin, Xinyi Wu, Zhenyao
+Wu, Yang Mi, and Song Wang. From shadow
+generation to shadow removal. In Proceed-
+ings of the IEEE/CVF conference on com-
+puter vision and pattern recognition, pages
+4927–4936, 2021.
+[60] Andreas
+Lugmayr,
+Martin
+Danelljan,
+
+Andres Romero, Fisher Yu, Radu Timofte,
+and Luc Van Gool.
+Repaint: Inpaint-
+ing using denoising diffusion probabilistic
+models.
+In Proceedings of the IEEE/CVF
+Conference
+on
+Computer
+Vision
+and
+Pattern Recognition, pages 11461–11471,
+2022.
+[61] Aleksander Madry, Aleksandar Makelov,
+Ludwig
+Schmidt,
+Dimitris
+Tsipras,
+and
+Adrian Vladu. Towards deep learning mod-
+els resistant to adversarial attacks.
+In
+International Conference on Learning Rep-
+resentations, 2018.
+[62] Kangfu Mei, Luis Figueroa, Zhe Lin, Zhi-
+hong Ding, Scott Cohen, and Vishal M
+Patel. Latent feature-guided diffusion mod-
+els for shadow removal. In Proceedings of the
+IEEE/CVF Winter Conference on Applica-
+tions of Computer Vision, pages 4313–4322,
+2024.
+[63] Anish Mittal, Rajiv Soundararajan, and
+Alan C Bovik. Making a “completely blind”
+image quality analyzer.
+IEEE Signal pro-
+cessing letters, 20(3):209–212, 2012.
+[64] Chong Mou, Qian Wang, and Jian Zhang.
+Deep generalized unfolding networks for
+image
+restoration.
+In
+Proceedings
+of
+the IEEE/CVF Conference on Computer
+Vision
+and
+Pattern
+Recognition,
+pages
+17399–17410, 2022.
+[65] Saritha Murali, VK Govindan, and Saidalavi
+Kalady. A survey on shadow removal tech-
+niques for single image. International Jour-
+nal of Image, Graphics and Signal Process-
+ing, 8(12):38, 2016.
+[66] Sohail Nadimi and Bir Bhanu.
+Physi-
+cal models for moving shadow and object
+detection in video.
+IEEE transactions on
+pattern analysis and machine intelligence,
+26(8):1079–1087, 2004.
+[67] Kunpeng Niu, Yanli Liu, Enhua Wu, and
+Guanyu Xing. A boundary-aware network
+for shadow removal. IEEE Transactions on
+Multimedia, 2022.
+[68] Dustin Podell, Zion English, Kyle Lacey,
+Andreas Blattmann, Tim Dockhorn, Jonas
+M¨uller, Joe Penna, and Robin Rombach.
+SDXL: Improving latent diffusion models
+for high-resolution image synthesis. In The
+Twelfth International Conference on Learn-
+ing Representations.
+[69] Liangqiong Qu, Jiandong Tian, Shengfeng
+He, Yandong Tang, and Rynson WH Lau.
+Deshadownet: A multi-context embedding
+deep network for shadow removal. In CVPR,
+pages 4067–4075, 2017.
+[70] Olaf Ronneberger, Philipp Fischer, and
+Thomas Brox.
+U-net: Convolutional net-
+works for biomedical image segmentation. In
+International Conference on Medical image
+computing and computer-assisted interven-
+tion, pages 234–241. Springer, 2015.
+[71] Chitwan Saharia, Jonathan Ho, William
+Chan,
+Tim
+Salimans,
+David
+J
+Fleet,
+and Mohammad Norouzi.
+Image super-
+resolution via iterative refinement.
+IEEE
+Transactions
+on
+Pattern
+Analysis
+and
+Machine Intelligence, 2022.
+[72] Neda Salamati, Arthur Germain, and S Siis-
+strunk.
+Removing shadows from images
+using color and near-infrared. In 2011 18th
+IEEE International Conference on Image
+Processing, pages 1713–1716. IEEE, 2011.
+[73] Mrinmoy Sen, Sai Pradyumna Chermala,
+Nazrinbanu Nurmohammad Nagori, Venkat
+Peddigari, Praful Mathur, BH Prasad, and
+Moonhwan Jeong. Shards: Efficient shadow
+removal using dual stage network for high-
+resolution images.
+In Proceedings of the
+IEEE/CVF Winter Conference on Applica-
+tions of Computer Vision, pages 1809–1817,
+2023.
+[74] Aashish Sharma and Loong-Fah Cheong.
+Into the twilight zone: Depth estimation
+using joint structure-stereo optimization. In
+Proceedings of the European Conference on
+Computer Vision (ECCV), pages 103–118,
+2018.
+[75] Assaf Shocher, Nadav Cohen, and Michal
+Irani.
+“zero-shot” super-resolution using
+deep internal learning.
+In Proceedings of
+the IEEE conference on computer vision and
+pattern recognition, pages 3118–3126, 2018.
+[76] Yael Shor and Dani Lischinski. The shadow
+meets the mask: Pyramid-based shadow
+removal.
+In Computer Graphics Forum,
+volume 27, pages 577–586. Wiley Online
+Library, 2008.
+[77] Oleksii Sidorov. Conditional gans for multi-
+illuminant color constancy: Revolution or
+yet another approach?
+In Proceedings of
+the IEEE/CVF Conference on Computer
+
+Vision and Pattern Recognition Workshops,
+pages 0–0, 2019.
+[78] Karen Simonyan and Andrew Zisserman.
+Very deep convolutional networks for large-
+scale image recognition. In 3rd International
+Conference on Learning Representations,
+ICLR 2015, San Diego, CA, USA, May 7-9,
+2015, Conference Track Proceedings, 2015.
+[79] Jascha Sohl-Dickstein, Eric Weiss, Niru
+Maheswaranathan,
+and
+Surya
+Ganguli.
+Deep unsupervised learning using nonequi-
+librium thermodynamics.
+In International
+Conference on Machine Learning, pages
+2256–2265. PMLR, 2015.
+[80] Xinhao Tao, Junyan Cao, Yan Hong, and Li
+Niu. Shadow generation with decomposed
+mask prediction and attentive shadow fill-
+ing. In Proceedings of the AAAI Conference
+on Artificial Intelligence, volume 38, pages
+5198–5206, 2024.
+[81] Arti Tiwari, Pradeep Kumar Singh, and
+Sobia Amin. A survey on shadow detection
+and removal in images and video sequences.
+In 2016 6th International Conference-Cloud
+System and Big Data Engineering (Conflu-
+ence), pages 518–523. IEEE, 2016.
+[82] Ashish Vaswani, Noam Shazeer, Niki Par-
+mar, Jakob Uszkoreit, Llion Jones, Aidan N
+Gomez,  Lukasz Kaiser, and Illia Polosukhin.
+Attention is all you need. pages 5998–6008,
+2017.
+[83] Ragav Venkatesan and Baoxin Li. Convolu-
+tional neural networks in visual computing:
+a concise guide. CRC Press, 2017.
+[84] Tom´as F Yago Vicente, Le Hou, Chen-
+Ping Yu, Minh Hoai, and Dimitris Sama-
+ras. Large-scale training of shadow detectors
+with noisily-annotated shadow examples. In
+Computer Vision–ECCV 2016: 14th Euro-
+pean Conference, Amsterdam, The Nether-
+lands, October 11-14, 2016, Proceedings,
+Part VI 14, pages 816–832. Springer, 2016.
+[85] Tomas F Yago Vicente and Dimitris Sama-
+ras.
+Single image shadow removal via
+neighbor-based region relighting. In Euro-
+pean Conference on Computer Vision, pages
+309–320. Springer, 2014.
+[86] Jin Wan, Hui Yin, Zhenyao Wu, Xinyi Wu,
+Yanting Liu, and Song Wang. Style-guided
+shadow removal.
+In Computer Vision–
+ECCV 2022: 17th European Conference, Tel
+Aviv, Israel, October 23–27, 2022, Proceed-
+ings, Part XIX, pages 361–378. Springer,
+2022.
+[87] Chong Wang, Lanqing Guo, Yufei Wang,
+Hao Cheng, Yi Yu, and Bihan Wen. Pro-
+gressive divide-and-conquer via subsampling
+decomposition for accelerated mri. In Pro-
+ceedings of the IEEE/CVF Conference on
+Computer Vision and Pattern Recognition,
+pages 25128–25137, 2024.
+[88] Chong Wang, Yi Yu, Lanqing Guo, and
+Bihan Wen.
+Benchmarking adversarial
+robustness of image shadow removal with
+shadow-adaptive attacks. In ICASSP 2024-
+2024 IEEE International Conference on
+Acoustics, Speech and Signal Processing
+(ICASSP), pages 13126–13130. IEEE, 2024.
+[89] Chong Wang, Rongkai Zhang, Gabriel Mali-
+akal, Saiprasad Ravishankar, and Bihan
+Wen.
+Deep reinforcement learning based
+unrolling network for mri reconstruction. In
+2023 IEEE 20th International Symposium
+on Biomedical Imaging (ISBI), pages 1–5.
+IEEE, 2023.
+[90] Jifeng Wang, Xiang Li, and Jian Yang.
+Stacked conditional generative adversarial
+networks for jointly learning shadow detec-
+tion and shadow removal. In CVPR, pages
+1788–1797, 2018.
+[91] Jianyi Wang, Zongsheng Yue, Shangchen
+Zhou, Kelvin CK Chan, and Chen Change
+Loy.
+Exploiting diffusion prior for real-
+world image super-resolution. International
+Journal of Computer Vision, pages 1–21,
+2024.
+[92] Ruixing Wang, Qing Zhang, Chi-Wing Fu,
+Xiaoyong Shen, Wei-Shi Zheng, and Jiaya
+Jia.
+Underexposed photo enhancement
+using deep illumination estimation. In Pro-
+ceedings of the IEEE/CVF Conference on
+Computer Vision and Pattern Recognition,
+pages 6849–6857, 2019.
+[93] Yufei Wang, Yi Yu, Wenhan Yang, Lan-
+qing Guo, Lap-Pui Chau, Alex C Kot, and
+Bihan Wen.
+Exposurediffusion: Learning
+to expose for low-light image enhancement.
+In Proceedings of the IEEE/CVF Inter-
+national Conference on Computer Vision,
+pages 12438–12448, 2023.
+[94] Zhou Wang, Alan C Bovik, Hamid R Sheikh,
+and Eero P Simoncelli.
+Image quality
+
+assessment: from error visibility to struc-
+tural similarity. IEEE transactions on image
+processing, 13(4):600–612, 2004.
+[95] Tai-Pang Wu and Chi-Keung Tang.
+A
+bayesian approach for shadow extraction
+from a single image. In Tenth IEEE Inter-
+national Conference on Computer Vision
+(ICCV’05) Volume 1, volume 1, pages 480–
+487. IEEE, 2005.
+[96] Chunxia Xiao, Ruiyun She, Donglin Xiao,
+and Kwan-Liu Ma.
+Fast shadow removal
+using
+adaptive
+multi-scale
+illumination
+transfer.
+In Computer Graphics Forum,
+volume 32, pages 207–218. Wiley Online
+Library, 2013.
+[97] Chunxia Xiao, Donglin Xiao, Ling Zhang,
+and Lin Chen.
+Efficient shadow removal
+using
+subregion
+matching
+illumination
+transfer.
+In Computer Graphics Forum,
+volume 32, pages 421–430. Wiley Online
+Library, 2013.
+[98] Jie Xiao, Xueyang Fu, Yurui Zhu, Dong Li,
+Jie Huang, Kai Zhu, and Zheng-Jun Zha.
+Homoformer: Homogenized transformer for
+image shadow removal.
+In Proceedings of
+the IEEE/CVF Conference on Computer
+Vision and Pattern Recognition (CVPR),
+pages 25617–25626, June 2024.
+[99] Li Xu, Qiong Yan, Yang Xia, and Jiaya Jia.
+Structure extraction from texture via rela-
+tive total variation. ACM transactions on
+graphics (TOG), 31(6):1–10, 2012.
+[100] Jun Yu, Peng He, and Ziqi Peng. Fsr-net:
+Deep fourier network for shadow removal.
+In Proceedings of the 31st ACM Inter-
+national Conference on Multimedia, pages
+2335–2343, 2023.
+[101] Qianhao Yu, Naishan Zheng, Jie Huang, and
+Feng Zhao. Cnsnet: A cleanness-navigated-
+shadow network for shadow removal.
+In
+Computer Vision–ECCV 2022 Workshops:
+Tel Aviv, Israel, October 23–27, 2022, Pro-
+ceedings, Part II, pages 221–238. Springer,
+2023.
+[102] Mehmet Kerim Y¨ucel, Valia Dimaridou,
+Bruno Manganelli, Mete Ozay, Anastasios
+Drosou, and Albert Sa`a-Garriga. Lra&ldra:
+Rethinking residual predictions for efficient
+shadow detection and removal. In Proceed-
+ings of the IEEE/CVF Winter Conference
+on Applications of Computer Vision, pages
+4925–4935, 2023.
+[103] Kai Zhang, Luc Van Gool, and Radu Timo-
+fte. Deep unfolding network for image super-
+resolution. In Proceedings of the IEEE/CVF
+conference on computer vision and pattern
+recognition, pages 3217–3226, 2020.
+[104] Ling Zhang, Chengjiang Long, Xiaolong
+Zhang, and Chunxia Xiao. Ris-gan: Explore
+residual and illumination with generative
+adversarial networks for shadow removal.
+In Proceedings of the AAAI Conference
+on Artificial Intelligence, volume 34, pages
+12829–12836, 2020.
+[105] Ling Zhang, Qing Zhang, and Chunxia Xiao.
+Shadow remover: Image shadow removal
+based on illumination recovering optimiza-
+tion. IEEE Transactions on Image Process-
+ing, 24(11):4623–4636, 2015.
+[106] Richard Zhang, Phillip Isola, Alexei A Efros,
+Eli Shechtman, and Oliver Wang.
+The
+unreasonable effectiveness of deep features
+as a perceptual metric.
+In Proceedings of
+the IEEE conference on computer vision and
+pattern recognition, pages 586–595, 2018.
+[107] Wuming Zhang, Xi Zhao, Jean-Marie Mor-
+van, and Liming Chen. Improving shadow
+suppression for illumination robust face
+recognition.
+IEEE transactions on pat-
+tern
+analysis
+and
+machine
+intelligence,
+41(3):611–624, 2018.
+[108] Hang Zhao, Orazio Gallo, Iuri Frosio, and
+Jan Kautz. Loss functions for image restora-
+tion with neural networks. IEEE Transac-
+tions on computational imaging, 3(1):47–57,
+2016.
+[109] Hongyi Zheng, Hongwei Yong, and Lei
+Zhang.
+Unfolded deep kernel estimation
+for blind image super-resolution. In Euro-
+pean Conference on Computer Vision, pages
+502–518. Springer, 2022.
+[110] Yiqi Zhong, Xianming Liu, Deming Zhai,
+Junjun Jiang, and Xiangyang Ji.
+Shad-
+ows can be dangerous: Stealthy and effec-
+tive physical-world adversarial attack by
+natural phenomenon.
+In Proceedings of
+the IEEE/CVF Conference on Computer
+Vision
+and
+Pattern
+Recognition,
+pages
+15345–15354, 2022.
+[111] Lei Zhu, Zijun Deng, Xiaowei Hu, Chi-Wing
+Fu, Xuemiao Xu, Jing Qin, and Pheng-
+Ann Heng.
+Bidirectional feature pyramid
+
+network with recurrent attention residual
+modules for shadow detection.
+In ECCV,
+pages 121–136, 2018.
+[112] Yurui Zhu, Jie Huang, Xueyang Fu, Feng
+Zhao, Qibin Sun, and Zheng-Jun Zha. Bijec-
+tive mapping network for shadow removal.
+In Proceedings of the IEEE/CVF Con-
+ference on Computer Vision and Pattern
+Recognition, pages 5627–5636, 2022.
+[113] Yurui
+Zhu,
+Zeyu
+Xiao,
+Yanchi
+Fang,
+Xueyang Fu, Zhiwei Xiong, and Zheng-Jun
+Zha.
+Efficient model-driven network for
+shadow removal.
+In Proceedings of the
+AAAI conference on artificial intelligence,
+volume 36, pages 3635–3643, 2022.

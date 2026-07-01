@@ -1,0 +1,2087 @@
+PhaSR: Generalized Image Shadow Removal with Physically Aligned Priors
+Chia-Ming Lee1,2
+Yu-Fan Lin2
+Yu-Jou Hsiao2
+Jin-Hui Jiang1
+Yu-Lun Liu1
+Chih-Chung Hsu1,2
+1National Yang Ming Chiao Tung University
+2National Cheng Kung University
+Abstract
+Shadow removal under diverse lighting conditions
+requires disentangling illumination from intrinsic re-
+flectance—a challenge compounded when physical priors
+are not properly aligned.
+We propose PhaSR (Physi-
+cally Aligned Shadow Removal), addressing this through
+dual-level prior alignment to enable robust performance
+from single-light shadows to multi-source ambient light-
+ing.
+First,
+Physically Aligned Normalization (PAN)
+performs closed-form illumination correction via Gray-
+world normalization, log-domain Retinex decomposition,
+and dynamic range recombination, suppressing chromatic
+bias. Second, Geometric-Semantic Rectification Attention
+(GSRA) extends differential attention to cross-modal align-
+ment, harmonizing depth-derived geometry with DINO-v2
+semantic embeddings to resolve modal conflicts under vary-
+ing illumination.
+Experiments show competitive perfor-
+mance in shadow removal with lower complexity and gener-
+alization to ambient lighting where traditional methods fail
+under multi-source illumination. Our source code is avail-
+able at https://github.com/ming053l/PhaSR.
+1. Introduction
+Shadows, as natural consequences of light-object interac-
+tions, are ubiquitous optical phenomena that profoundly im-
+pact multimedia content analysis, degrading performance
+in tasks ranging from remote sensing [15], segmentation
+[25], tracking [42], and 3D reconstruction [1, 51] to multi-
+media applications [36]. Removing shadows from images
+is not only a fundamental computer vision task but also
+critical for enhancing downstream application performance
+[5, 35, 45]. The core challenge lies in accurately distin-
+guishing shadows from intrinsic object darkness and lever-
+aging contextual information to perform physically plau-
+sible color correction and content restoration within shad-
+owed areas [23, 56].
+Despite progress in learning-based shadow removal, key
+challenges persist.
+First, shadows are easily confused
+with intrinsic material properties when relying solely on
+RGB cues, causing color distortion near textured bound-
+Figure 1. Results on indoor-synthesized dataset [53]. Compared
+with OmniSR [53] and DenseSR [28], PhaSR with the proposed
+GSRA achieves more accurate boundary localization and recovers
+fine reflectance details even under complex indirect illumination.
+aries. Second, while existing methods achieve strong per-
+formance on single-light direct shadow benchmarks, emerg-
+ing applications demand generalization to more complex
+scenarios—indoor ambient lighting with multiple sources,
+color shifts, and diffuse indirect illumination—where prior
+works show limited robustness (Figure 1). Third, conven-
+tional encoder-decoder frameworks fail to effectively prop-
+agate physical priors, as uniform fusion overlooks spatially
+varying degradation, resulting in blurred edges. As shown
+in Figure 2, prior methods lose physical priors through the
+bottleneck, whereas our framework preserves them under
+complex illumination and details recovery.
+These challenges stem from prior misalignment. While
+physical-guided feature transformation [7, 8, 31, 52] and ex-
+plicit geometric-semantic prior integration [19, 28, 53, 54]
+enhance robustness, these priors encode conflicting sig-
+nals: geometric features respond to local shading varia-
+tions, while semantic features remain stable across light-
+ing. Without proper alignment, geometric noise disrupts se-
+mantic consistency, or semantic over-smoothing erases illu-
+mination boundaries—particularly problematic for indirect
+lighting where geometric and semantic cues must cooperate
+to disentangle ambient effects from surface properties.
+We propose PhaSR—Physically Aligned Shadow Re-
+moval—addressing prior misalignment through two mech-
+arXiv:2601.17470v3  [cs.CV]  14 Feb 2026
+
+PhaSR (Ours)
+OmniSR
+DenseSR
+Input
+Figure 2. Intermediate feature visualization. Existing methods
+struggle to leverage physical priors without valid shadow masks
+under complex environmental lighting. In contrast, our PhaSR
+precisely highlights and restores shadow regions in both bottle-
+neck and decoder stages, demonstrating strong generalization.
+anisms.
+Physically Aligned Normalization (PAN) per-
+forms model-free preprocessing via Gray-world normal-
+ization, log-domain Retinex decomposition, and dynamic
+range recombination, suppressing global chromatic bias.
+Geometric-Semantic Rectification Attention (GSRA) ex-
+tends differential attention [58] to cross-modal alignment:
+computing Arect = Asem −λ · Ageo across depth-derived
+geometry (DepthAnything-v2 [55]) and semantic embed-
+dings (DINO-v2 [37]) to harmonize local geometric pre-
+cision with global semantic stability. This explicit align-
+ment enables accurate interpretation of both direct shad-
+ows (geometric-dominant) and ambient lighting (semantic-
+guided), generalizing from single-light to multi-source illu-
+mination scenarios. In summary, the main contributions of
+this work are threefold:
+• We introduce Physically Aligned Normalization,
+a
+closed-form preprocessing module performing Gray-
+world normalization, log-domain Retinex decomposition,
+and dynamic range recombination to suppress chromatic
+bias. PAN consistently improves existing architectures by
+0.15–0.34 dB across diverse lighting conditions.
+• We propose geometric-semantic rectification attention,
+extending differential attention to cross-modal prior
+alignment. By explicitly incorporating depth-derived ge-
+ometry and DINO-v2 semantic embeddings, GSRA har-
+monizes physically grounded geometric precision with
+semantic stability, addressing modal misalignment chal-
+lenges in ambient lighting normalization.
+• We demonstrate state-of-the-art performance on challeng-
+ing shadow removal benchmarks, achieving robust gener-
+alization from outdoor direct shadows to indoor indirect
+and ambient lighting scenarios while maintaining compu-
+tational efficiency.
+2. Related Work
+Single Image Shadow Removal
+Single-image shadow
+removal aims to recover the true appearance beneath shad-
+ows.
+Early traditional methods followed a two-stage
+pipeline—shadow detection and removal—based on hand-
+crafted features and physical or statistical illumination mod-
+els [3, 22, 41, 44, 60], but relied on strong priors that strug-
+gled with complex lighting and soft shadows. Deep learning
+has significantly advanced the field: CNNs [38, 40] capture
+multi-scale features but face locality limits; Transformer-
+based methods [9, 29, 52] offer better global context, though
+some rely on explicit shadow masks [9, 52]; Diffusion-
+based models [10, 34, 54] achieve high quality at signifi-
+cant computational cost. DeS3 [19] pioneered using pre-
+trained DINO [37] priors with diffusion for shadow re-
+moval, while RRLNet [31] applied Retinex decomposi-
+tion to guide diffusion-based texture refinement [6]. Om-
+niSR [53] introduced a synthesized dataset and semantic-
+geometric aware network for both direct and indirect shad-
+ows. DenseSR [28] reframes shadow removal as dense pre-
+diction, leveraging geometric-semantic priors and adaptive
+fusion to overcome ambiguity and boundary blurring. Shad-
+owHack [16] divides shadow removal into luminance recov-
+ery and color restoration using rectified outreach attention.
+Ambient Light Normalization.
+Beyond conventional
+shadow removal, recent work has explored the more chal-
+lenging task of ambient light normalization (ALN) [47, 49],
+which addresses complex real-world scenarios with multi-
+ple light sources, color shifts, and diffuse indirect illumi-
+nation. ReHiT [7] achieves efficient mask-free shadow re-
+moval through Retinex-guided dual-branch decomposition,
+while IFBlend [47] and RLN2-Lf [49] extend this frame-
+work to multi-source white and RGB color lighting respec-
+tively. However, the ill-posed nature of disentangling mul-
+tiple overlapping light contributions remains an open chal-
+lenge. Our method, while primarily designed for shadow
+removal, demonstrates strong generalization to ALN sce-
+narios through physically aligned normalization that han-
+dles diverse illumination conditions.
+Intrinsic Decomposition and Physical Priors. The for-
+mation of shadows originates from the fundamental physics
+of light transport being occluded by 3D scene geome-
+try [13, 27, 32, 57].
+Occlusion of direct illumination
+leads to sharp, well-defined shadows, while indirect illu-
+mination—arising from interreflections and ambient scat-
+tering—produces soft, graded shadows that are more chal-
+lenging to model and recover accurately [53].
+From the intrinsic image perspective, the observed im-
+age I can be decomposed into its albedo and shading com-
+ponents:
+I(x) = A(x) ⊗S(x),
+(1)
+where A denotes the intrinsic surface reflectance and S rep-
+resents spatially varying illumination.
+This formulation,
+grounded in Retinex theory, provides a physically inter-
+pretable basis for shadow removal since shadows mainly al-
+ter the shading component without changing the underlying
+
+Shallow
+Feature
+Extraction
+Image
+Reconstuction
+Transformer 
+Decoder Block
+(TDB)
+Transformer 
+Decoder Block
+Transformer 
+Encoder Block
+(TEB)
+Transformer 
+Encoder Block
+Transformer 
+Encoder Block
+Depth
+Estimator
+Transformer 
+Decoder Block
+Physical Aligned
+Transformer Block
+(PATB)
+DINO-V2
+Proj.
+Depth Map
+Normal Map
+Semantic Feature
+Gradients
+Frequency
+Grayscale Value Distribution
+Physically Aligned
+Normalization (PAN)
+LayerNorm
+CAB
+MLP
+LayerNorm
+GSRA
+LayerNorm
+MLP
+DWT
+LayerNorm
+CAB
+DWT
+TE(D)B
+PATB
+Proj.
+Proj.
+Input Image
+Reconstructed
+Image
+Freezed
+Prior
+Element-wise Multiplication
+Element-wise Addition
+C
+Downsampling
+Upsampling
+xN4
+xN3
+xN2
+xN1
+xN7
+xN6
+xN5
+C
+C
+C
+Figure 3. Overview of PhaSR: Physically Aligned Shadow Removal. PhaSR achieves physical alignment through two synergistic
+stages. Stage 1 (Sec. 3.1): PAN performs model-free illumination normalization via Gray-world color correction, log-domain Retinex
+decomposition (log I = log R + log S), and dynamic range recombination, suppressing chromatic bias while preserving reflectance
+cues. Stage 2 (Sec. 3.2): The multi-scale Transformer encoder-decoder integrates explicit physical priors—frozen DINO-v2 [37] semantic
+embeddings at encoder stages and DepthAnything-v2 [55] geometric priors (depth, normals) at the bottleneck—aligned through GSRA’s
+cross-modal differential attention (Arect = Asem −λ · Ageo). This dual-stage physical alignment—global illumination correction followed
+by local geometric-semantic rectification—enables robust reflectance recovery under complex lighting without requiring shadow masks.
+albedo [7, 12, 16, 31]. Recovering A and S from a single
+shadowed observation, however, is inherently ill-posed due
+to ambiguity between dark materials and shaded regions, in-
+direct lighting complexity, and spatially non-uniform degra-
+dation.
+Recent advances leverage large-scale pretrained
+models as sources of physical priors—including depth and
+normal maps [55], semantic features [21, 37], and illumina-
+tion cues via Retinex decomposition [26]—to guide more
+consistent intrinsic decomposition and illumination reason-
+ing [12, 16, 28, 31, 53]. Building on these advances, PhaSR
+integrates closed-form Retinex decomposition with explicit
+geometric-semantic prior alignment, enabling robust illumi-
+nation normalization across shadow removal and ambient
+lighting scenarios.
+3. Methodology
+Overview. Figure 3 presents PhaSR, which achieves phys-
+ically aligned shadow removal through dual-level prior
+alignment. At the global level, PAN performs parameter-
+free illumination-reflectance decomposition via log-domain
+Retinex theory, aligning the input image with the physi-
+cal assumption that shadows alter illumination while pre-
+serving intrinsic surface properties. This closed-form pre-
+processing suppresses chromatic bias induced by colored
+illuminants and stabilizes luminance distribution, provid-
+ing an illumination-consistent foundation for subsequent
+reasoning.
+At the local level, GSRA rectifies geometric
+and semantic priors through cross-modal differential atten-
+tion, aligning depth-derived shading cues (which respond
+to local light-geometry interactions) with semantic embed-
+dings (which encode material identity stable across light-
+ing changes).
+By computing Arect = Asem −λ · Ageo,
+GSRA resolves the conflicting responses between modali-
+ties—suppressing geometric noise in uniformly lit regions
+while preserving geometric precision at true illumination
+boundaries. This dual-level alignment—global illumination
+normalization followed by local geometric-semantic rectifi-
+cation—enables the network to disentangle reflectance from
+complex lighting effects, generalizing from single-light di-
+rect shadows to multi-source ambient illumination without
+requiring shadow masks.
+3.1. Physically Aligned Normalization
+Recent advances in Retinex-based shadow removal [7, 16]
+have demonstrated that explicit illumination-reflectance de-
+composition provides crucial inductive biases for handling
+lighting variations. ReHiT [7] employs dual-branch net-
+works for illumination-guided shadow removal, RLN² [49]
+extends this to RGB color lighting via HSV-guided decom-
+position, and IFBlend [47] addresses multi-source white
+lighting through image-frequency joint entropy maximiza-
+tion. Classical methods such as ACE [39] and color con-
+stancy approaches [33] similarly leverage illumination pri-
+ors for perceptual uniformity.
+Inspired by these works, PAN adopts the Retinex for-
+mulation but implements it through closed-form operations
+rather than learned mappings, achieving illumination invari-
+
+Figure 4. Overview of the proposed PAN. It performs model-
+free illumination correction through three stages:
+(1) Global
+color normalization removes chromatic bias, (2) log-domain
+Retinex decomposition separates reflectance ˆR from illumination
+ˆS via closed-form operations, and (3) recombination produces the
+illumination-consistent output ˆI.
+ance via model-free log-domain decomposition that nor-
+malizes color statistics while preserving reflectance cues.
+Gray-world Color Normalization. Real-world images
+often exhibit chromatic bias induced by illuminant color
+(e.g., warm indoor lighting, cool daylight), which con-
+founds subsequent reflectance-illumination decomposition.
+Under the Gray-world assumption [2], we first perform:
+Inorm = I ·
+E[I]
+Ec[I] + ε,
+(2)
+where E[I] denotes spatial average, Ec[·] represents per-
+channel mean, and ε = 10−6 prevents division by zero.
+This balances channel-wise illumination, removing color
+casts while stabilizing overall luminance for subsequent de-
+composition.
+Log-domain Retinex Decomposition. We then disen-
+tangle illumination from reflectance following the image
+formation model:
+Inorm(x) = R(x) ⊗S(x),
+(3)
+where R denotes surface reflectance and S represents illu-
+mination. Following recent works [7, 47, 49], we use re-
+flectance R rather than classical Retinex albedo A to ac-
+count for non-Lambertian effects (specular highlights, inter-
+reflections) common in real scenes.
+ReHiT [7] models
+this as perturbations ˆR and ˆL from ideal conditions, while
+RLN2 [49] uses ambient-lit images as reflectance targets,
+both recognizing that R approximates perceptually stable
+appearance rather than strict Lambertian albedo.
+Transforming to the logarithmic domain yields additive
+separability, log Inorm = log R + log S. Under the smooth-
+ness assumption, we estimate global lighting as the spa-
+tial average in log-space, log ˆS = EH,W [log(Inorm + ε)],
+with pseudo-reflectance as the residual log ˆR = log(Inorm+
+Qinput
+Kgeo
+Vgeo
+Vsem
+Ksem
+Finput
+Fgeo
+F'geo
+Fsem
+F'sem
+Foutput
+Asem
+Ageo
+F''geo
+F''sem
+Softmax
+Softmax
+RPB
+RPB
+Arect = Asem - λAgeo
+F'geo=Finput + αgeoFgeo 
+F'sem=Finput + αsemFsem 
+Figure 5. Overview of the proposed GSRA. Semantic and ge-
+ometric features are projected into modality-specific key–value
+spaces and queried with shared tokens. Rectification aligns the
+two modalities through soft attention balancing, resolving illumi-
+nation inconsistencies while preserving geometric stability.
+ε) −log ˆS. Exponentiating yields ˆR = exp(log ˆR) and
+ˆS = exp(log ˆS), effectively isolating dominant lighting ef-
+fects from material cues.
+Recombination and Normalization.
+The pseudo-
+components are recombined and normalized:
+ˆI =
+ˆR ⊗ˆS −min( ˆR ⊗ˆS)
+max( ˆR ⊗ˆS) −min( ˆR ⊗ˆS) + ε
+,
+(4)
+where min(·) and max(·) maintain valid radiometric re-
+lationships. As illustrated in Figure 4, this pipeline con-
+sistently improves shadow removal across diverse lighting
+conditions (Tables 2, 3), validating its effectiveness in han-
+dling multi-source illumination.
+3.2. Geometric Semantic Rectification Attention
+While PAN provides illumination-consistent input repre-
+sentation, the network must reconcile complementary phys-
+ical cues embedded in real-world images to accurately re-
+cover reflectance under varying lighting. Real-world scenes
+contain two distinct physically informed signals: geometric
+priors (surface orientation, shading gradients, depth discon-
+tinuities) that encode local light-geometry interactions, and
+semantic embeddings (object identity, material categories)
+that capture perceptually stable appearance across illumina-
+tion changes. Under Lambertian reflection, local shading
+I(x) = ρ(x) · n(x)T d depends on albedo ρ, normal n, and
+light direction d [14], making geometric features sensitive
+to lighting geometry. Conversely, semantic features remain
+stable—a red apple stays semantically ”red apple” whether
+shadowed or sunlit—providing crucial context for resolving
+ambiguities in complex materials [7, 49].
+
+However, these modalities respond differently to illu-
+mination variations:
+geometric features are precise but
+noisy (sharp at shadow edges, smooth in uniformly lit
+regions), while semantic features are stable but spatially
+coarse.
+This modal alignment challenge becomes criti-
+cal for ambient lighting normalization task, where multi-
+ple overlapping light sources create complex interactions.
+Recent methods adopt diverse approaches: IFBlend [47]
+employs frequency-domain transformation for white light-
+ing, RLN2 [49] uses HSV-based hue mapping for RGB
+color lighting, while PromptNorm [43] integrates depth-
+derived geometric priors with prompt-guided normaliza-
+tion.
+Shadow removal methods like OmniSR [53] and
+DenseSR [28] also leverage geometric-semantic priors, yet
+existing fusion strategies often fail to properly align com-
+plementary modal strengths—particularly when geometric
+precision and semantic stability must cooperate to disentan-
+gle overlapping illumination contributions.
+We propose GSRA, which leverages Differential Atten-
+tion [58] to harmonize these physically grounded modali-
+ties. Differential Attention’s subtraction structure naturally
+implements physically interpretable gating: the operation
+Asem −λ · Ageo rectifies semantic attention using geomet-
+ric guidance, suppressing semantic over-smoothing at true
+illumination boundaries while preserving geometric preci-
+sion. This produces modality-aware features that balance
+local geometric detail with global semantic stability, crucial
+for generalizing from single-light shadow removal to multi-
+source ALN scenarios.
+Multimodal Prior Injection. Given shared query fea-
+ture Finput, geometry prior Fgeo from DepthAnything-
+V2 [55] (depth and normal maps), and semantic embedding
+Fsem from DINO-v2 [37], we construct two complementary
+streams via prior injection:
+F′
+geo = Finput + αgeoFgeo,
+F′
+sem = Finput + αsemFsem,
+(5)
+where learnable αgeo and αsem control prior strength.
+This reinforces structure-preserving cues (shading continu-
+ity, edge orientation) in the geometric branch while adapt-
+ing semantic context to illumination-dependent scene vari-
+ations. We then generate modality-specific key-value pairs:
+{Kgeo, Vgeo} = Fgeo(F′
+geo),
+{Ksem, Vsem} = Fsem(F′
+sem),
+(6)
+where Fgeo(·) and Fsem(·) denote lightweight linear projec-
+tions preserving modality characteristics.
+Differential Rectification.
+Following Differential
+Transformer (DT) [58], we apply differential rectification,
+but critically extend it to cross-modal attention:
+while
+the original DT subtracts attention maps within a single
+self-attention mechanism to reduce noise, GSRA computes
+the difference between geometric and semantic modalities
+to achieve physically grounded feature alignment.
+Us-
+ing shared query Qinput, we compute attention maps as
+Ageo = Softmax((QinputK⊤
+geo)/
+√
+d + B) and Asem =
+PhaSR (Ours) / 0.8814
+DenseSR / 0.7652
+OmniSR / 0.8216
+Ground-truth
+Input
+IFBlend / 0.8513
+Figure 6. Qualitative comparison on Ambient6K [47]. Ambi-
+ent6K features multi-source white lighting and complex indirect
+illumination without shadow masks, requiring disentanglement of
+overlapping illumination contributions—substantially more chal-
+lenging than single-light shadow removal. PhaSR effectively re-
+covers ambient-normalized images while preserving material de-
+tails. Best SSIM score is bolded in the figures.
+Softmax((QinputK⊤
+sem)/
+√
+d + B), where B denotes rela-
+tive position bias.
+Specifically, we rectify semantic at-
+tention using geometric guidance as Arect = Asem −λ ·
+Ageo, where learnable λ balances context-dependent illu-
+mination variation (high λ) versus geometric regulariza-
+tion (low λ). The fused output is obtained as Foutput =
+Concat(ArectVgeo, ArectVsem), yielding features that har-
+monize local geometric precision with global semantic sta-
+bility, achieving accurate shadow localization within the
+network, as shown in Figure 2.
+This formulation (illustrated in Figure 5) enables GSRA
+to maintain physically grounded geometric cues while se-
+lectively refining semantic responses. While recent shadow
+removal methods [16] also adopt differential attention
+mechanisms, GSRA distinguishes itself through explicit
+multi-modal prior injection—directly incorporating geo-
+metric priors (depth, normals) and semantic embeddings
+(DINO-v2) to guide the rectification process. This design
+addresses the inherent challenge that traditional shadow re-
+moval benchmarks contain primarily single-light scenarios,
+whereas ambient lighting normalization demands robust-
+ness under multi-source indirect illumination and chromatic
+shifts.
+General restoration backbones [28, 53] similarly
+struggle with boundary preservation under such conditions.
+3.3. Loss Functions
+We supervise shadow-free image reconstruction using
+Charbonnier loss [59] for pixel-wise fidelity and SSIM loss
+for structural consistency. Given predicted output ˆIpred and
+ground truth IGT, the losses are defined as:
+LCharb =
+rˆIpred −IGT
+
+2 + ϵ2,
+LSSIM = 1 −SSIM
+
+ˆIpred, IGT
+
+,
+(7)
+where ϵ = 10−6 ensures numerical stability.
+The to-
+tal objective is:Ltotal = λCharb LCharb + λSSIM LSSIM, with
+
+Method
+Venue
+ISTD Dataset
+ISTD+ Dataset
+INS Dataset
+WSRD+ Dataset
+Ambient6K Dataset
+PSNR↑
+SSIM↑
+PSNR↑
+SSIM↑
+PSNR↑
+SSIM↑
+PSNR↑
+SSIM↑
+PSNR↑
+SSIM↑
+DSC [17]
+TPAMI 2019
+29.00
+0.944
+25.66
+0.956
+29.05
+0.940
+—
+—
+—
+—
+DHAN [4]
+AAAI 2020
+29.11
+0.954
+25.66
+0.956
+27.84
+0.963
+22.39
+0.796
+—
+—
+DC-ShadowNet [18]
+CVPR 2021
+24.02
+0.677
+25.50
+0.694
+—
+—
+21.62
+0.593
+17.73
+0.711
+BMNet [61]
+CVPR 2022
+28.53
+0.952
+32.22
+0.965
+27.90
+0.958
+24.75
+0.816
+—
+—
+ShadowFormer [9]
+AAAI 2023
+29.90
+0.960
+31.39
+0.946
+28.62
+0.963
+25.44
+0.820
+—
+—
+DMTN [30]
+TMM 2023
+29.05
+0.956
+31.72
+0.963
+28.83
+0.969
+—
+—
+—
+—
+ShadowDiffusion [10]
+CVPR 2023
+30.09
+0.918
+31.08
+0.950
+29.12
+0.966
+—
+—
+—
+—
+ShadowRefiner [6]
+CVPRW 2024
+28.75
+0.916
+31.03
+0.928
+—
+—
+26.04
+0.827
+—
+—
+IFBlend [47]
+ECCV 2024
+28.55
+0.906
+30.87
+0.916
+—
+—
+25.79
+0.809
+21.44
+0.819
+RLN2-Lf [49]
+ICCV 2025
+28.77
+0.914
+31.02
+0.930
+—
+—
+25.84
+0.821
+21.71
+0.825
+ReHiT [7]
+CVPRW 2025
+28.81
+0.914
+31.16
+0.925
+—
+—
+26.15
+0.826
+19.98
+0.798
+OmniSR [53]
+AAAI 2025
+30.45
+0.964
+33.34
+0.970
+30.38
+0.973
+26.07
+0.835
+23.01
+0.830
+StableShadowDiffusion [54]
+CVPR 2025
+—
+—
+35.19
+0.970
+30.56
+0.975
+26.26
+0.827
+—
+—
+DenseSR [28]
+ACMMM 2025
+30.64
+0.976
+33.98
+0.974
+30.64
+0.981
+26.28
+0.838
+22.54
+0.826
+PhaSR (Ours)
+—
+30.73
+0.960
+34.48
+0.960
+30.38
+0.961
+28.44
+0.942
+23.32
+0.834
+Table 1. Quantitative comparisons on shadow removal and ambient lighting normalization benchmarks. We evaluate PhaSR on
+traditional SR datasets (ISTD [50], ISTD+ [23], INS [53], WSRD+ [46]) and the challenging ambient lighting normalization benchmark
+(Ambient6K [47]), which contains multi-source white lighting and complex indirect illumination. PhaSR achieves SoTA results on WSRD+
+and Ambient6K demonstrates robust generalization to ambient lighting scenarios. Best results are highlighted as 1st , 2nd , and 3rd .
+PhaSR (Ours)
+DenseSR
+OmniSR
+StableShadowDiffusion
+PSNR/LPIPS
+33.885/0.0197
+33.498/0.0271
+33.645/0.0276
+31.463/0.0308
+Full Image
+Cropped Image
+PhaSR (Ours)
+DenseSR
+OmniSR
+StableShadowDiffusion
+PSNR/LPIPS
+29.512/0.0382
+28.140/0.0508
+28.930/0.0484
+28.697/0.0476
+Full Image
+Cropped Image
+LQ-rgb_1444.png
+LQ-rgb_852.png
+Figure 7. Results visualization on INS [53] dataset. INS is a
+synthetic indoor dataset rendered with physically based lighting,
+featuring diverse materials and complex shadow interactions.
+λCharb = 0.95 and λSSIM = 0.05 balancing fidelity and per-
+ceptual quality.
+4. Experiment Results
+Datasets and Implementation Details. We evaluated our
+method on five datasets: ISTD [50], ISTD+ [23], WSRD+
+[46], INS [53] and Ambient6K [47]. Following previous
+work [8, 9, 24, 53], we used 256 × 256 randomly cropped
+images and report PSNR and SSIM scores. For WSRD+,
+we used the evaluation data and code from the NTIRE 2024
+Shadow Removal Challenge [48].
+Our model adopts a hierarchical architecture with base
+channel dimension C = 32 and uniform depth configu-
+ration where each Transformer block (N1–N7) contains
+2 layers.
+We used AdamW optimizer [20] with β1=0.9,
+β2=0.999, ϵ = 1 × 10−8, batch size of 9, and 1400 epochs.
+The learning rate started at 2 × 10−4 with cosine anneal-
+ing.
+Standard augmentations, including random flipping
+and rotation were applied. All comparisons use the results
+reported in the original papers and hyperparameters.
+4.1. Quantitative Results
+We compare our method with SoTA image shadow re-
+moval methods, including DSC [17], DC-ShadowNet [18],
+DHAN [4], BMNet [61], ShadowRefiner [6], Shadow-
+Former [9], DMTN [30], ShadowDiffusion [10], ReHiT [7],
+OmniSR [53], StableShadowDiffusion [54], and Dens-
+eSR [28], as shown in Tables 1. Note that methods requir-
+ing explicit shadow masks as input are excluded from our
+comparison, as all experiments are conducted under mask-
+free settings. This evaluation protocol better reflects real-
+world scenarios where automatic mask detection often fails
+due to varying lighting conditions, shadow softness, and
+complex scene compositions, making mask-free approaches
+more practical and robust for deployment.
+Qualitative results are presented in Figures 6, 7, and 8 for
+Ambient6K, INS, and ISTD+ datasets, respectively. PhaSR
+effectively preserves texture details while removing shadow
+artifacts across diverse scenarios. On the challenging Am-
+bient6K dataset [47], which involves complex multi-source
+illumination and diffuse indirect lighting beyond conven-
+tional shadow removal, PhaSR substantially outperforms
+dedicated ambient light normalization methods including
+IFBlend [47] and RLN2-Lf [49]. Interestingly, shadow re-
+moval methods that incorporate geometric or semantic pri-
+ors, such as OmniSR [53] and DenseSR [28], also demon-
+
+PhaSR (Ours)
+DenseSR
+OmniSR
+StableShadowDiffusion
+DeS3
+Ground-truth
+Input
+Figure 8. Qualitative comparison with state-of-the-art methods on ISTD+ [23]. ISTD+ is a color-corrected version of ISTD featuring
+outdoor scenes under natural single-light direct illumination. PhaSR effectively removes hard shadows while preserving fine-grained
+texture details and avoiding color distortion, demonstrating competitive performance against both mask-based and mask-free approaches.
+Figure 9. More examples of PAN. For the real captured in ISTD+
+[23] and WSTD+ [46], our method excels in removing complex
+indirect shadows and boundary sharpness. (The darker, the better
+for residue images, please zoom in for better view.)
+strate improved performance on ambient light normaliza-
+tion, suggesting that structured prior knowledge benefits
+both shadow removal and complex lighting scenarios.
+4.2. Analysis of Physically Aligned Normalization
+We evaluate the proposed PAN to verify its impact on il-
+lumination consistency and restoration quality. As shown
+in Table 2, PAN effectively reduces residual errors be-
+tween shadowed and non-shadowed regions across diverse
+datasets.
+The improvement is most pronounced on out-
+door scenes such as ISTD, achieving up to 26.4% error
+reduction, while even in diffuse indoor ambient lighting,
+which include multiple lighting sources and color shift-
+ings (e.g., Ambient6K [47], CL3AN [49]), PAN maintains
+steady gains of 1–8%. These results confirm PAN’s robust-
+ness in normalizing both direct and indirect illumination,
+yielding more uniform inputs for downstream processing.
+When integrated as a plug-in module into various frame-
+works (OmniSR [53], DenseSR [28], and PhaSR), PAN
+consistently improves PSNR/SSIM across all datasets (Ta-
+ble 3). Figure 9 shows that using PAN could minimise the
+residue of the corrected input. In summary, PAN serves as a
+parameter-free yet physically grounded normalization step
+that stabilizes input distributions and facilitates more reli-
+able shadow removal under complex lighting.
+Comparison with traditional methods. As shown in
+Table 5, we compare PAN against classical parameter-
+free color correction methods including ACE [39], White-
+balance, White-Patch, and CIELab on WSRD+ [46]. Unlike
+these generic approaches that focus solely on global color
+consistency,
+PAN explicitly addresses shadow-specific
+challenges through log-domain decomposition and global-
+local illumination balancing. This physically grounded de-
+sign enables PAN to distinguish intrinsic reflectance from
+shadow-induced shading, achieving superior performance
+across all metrics—particularly in perceptual quality.
+4.3. Complexity Analysis
+As summarized in Table 4, PhaSR achieves a favorable bal-
+ance between accuracy and computational efficiency. De-
+spite integrating multimodal priors such as DepthAnything-
+V2 [55] and DINO-V2 [37], the proposed architecture
+maintains the lowest FLOPs (55.63 G) and the second
+smallest parameter count (18.95 M) among all compared
+models.
+Thanks to its lightweight asymmetric decoder
+and modality-differential attention design, PhaSR runs in
+87.9 ms per 640 × 480 image, faster than diffusion-based
+approaches like ShadowDiffusion [11] and StableShad-
+owDiffusion [54], while producing comparable or superior
+restoration quality. These results demonstrate that the pro-
+posed physically aligned design not only enhances accuracy
+but also ensures high computational efficiency suitable for
+real-time or embedded deployment.
+4.4. Ablation Study
+To validate our design choices, we conduct ablation stud-
+ies on PAN and GSRA across ISTD+ and WSRD+ [48]
+datasets (Table 6).
+Impact of PAN. Removing PAN causes consistent per-
+formance drops, confirming that closed-form illumination
+normalization stabilizes input representations across light-
+ing conditions. This validates PAN’s role as a physically
+grounded preprocessing step that reduces chromatic bias be-
+fore feature learning.
+Impact of GSRA. Excluding GSRA yields larger
+
+Residual Error (↓)
+Dataset
+Subset
+Original
+Normalized
+Improvement
+Scene Type
+ISTD [50]
+Train
+0.1525
+0.1123
++26.4%
+Real-world / Outdoor
+Test
+0.1199
+0.0992
++17.3%
+Real-world / Outdoor
+INS [53]
+Train
+0.0488
+0.0471
++3.5%
+Synthesized / Indoor
+Test
+0.0672
+0.0643
++4.3%
+Synthesized / Indoor
+Ambient6K [47]
+Train
+0.1808
+0.1793
++0.8%
+Real-world / Indoor
+Test
+0.1870
+0.1846
++1.3%
+Real-world / Indoor
+WSRD+ [46]
+Train
+0.1178
+0.1134
++3.7%
+Real-world / Indoor
+Test
+0.1223
+0.1169
++4.4%
+Real-world / Indoor
+SRD [38]
+Train
+0.1382
+0.1372
++0.7%
+Real-world / Outdoor
+Test
+0.1689
+0.1632
++3.4%
+Real-world / Outdoor
+CL3AN [49]
+SH Train
+0.1566
+0.1539
++1.7%
+Real-world / Indoor
+CR Train
+0.2899
+0.2668
++8.0%
+Real-world / Indoor
+SH Test
+0.3900
+0.3762
++3.5%
+Real-world / Indoor
+CR Test
+0.2930
+0.2713
++7.4%
+Real-world / Indoor
+Table 2. Evaluation of PAN across diverse datasets. Residual error (↓) is the
+mean pixel-wise difference from shadow-free reference. Leveraging proposed
+Normalization consistently improves results.
+Dataset / Model
+w/o PAN
+w/ PAN
+ISTD+ (Outdoor)
+OmniSR [53]
+30.45 / 0.964 30.67 / 0.969 (+0.22/0.005)
+DenseSR [28]
+30.64 / 0.976 30.69 / 0.979 (+0.05/0.003)
+PhaSR (Ours)
+30.58 / 0.954 30.73 / 0.960 (+0.15/0.006)
+WSRD+ (Indoor-Real, Single Lighting Sources)
+OmniSR [53]
+26.07 / 0.835 26.29 / 0.852 (+0.22/0.017)
+DenseSR [28]
+26.28 / 0.838 26.61 / 0.851 (+0.33/0.013)
+PhaSR (Ours)
+28.17 / 0.925 28.44 / 0.942 (+0.27/0.017)
+Ambient6K (Indoor-Real, Multiple Lighting Sources)
+OmniSR [53]
+23.01 / 0.830 23.25 / 0.832 (+0.24/0.002)
+DenseSR [28]
+22.54 / 0.826 22.78 / 0.830 (+0.24/0.004)
+PhaSR (Ours)
+22.98 / 0.821 23.32 / 0.834 (+0.34/0.013)
+Table 3.
+Ablation of PAN across SoTA prior-
+guided shadow removal models. Each cell reports
+PSNR/SSIM. Normalization improves both metrics.
+Model
+Run-time
+FLOPs
+#Params
+DeS3 [19]
+254.6ms
+406.356 G
+67.444 M
+ShadowFormer [9]
+43.7ms
+64.602G
+11.352M
+DMTN [30]
+82.6ms
+122.301G
+22.830M
+ShadowDiffusion [11]
+506.9ms
+174.658G
+55.376M
+OmniSR [53]
+120.1ms
+78.316G
+24.553M
+StableShadowDiffusion [54]
+452.8ms
+678.577G
+1329.824M
+DenseSR [28]
+124.6ms
+81.127G
+24.698M
+PhaSR (Ours)
+87.9ms
+55.632G
+18.949M
+Table 4.
+Comparison of efficiency and model complexity.
+PhaSR achieves the second smallest parameter size and the lowest
+FLOPs among all compared models, while maintaining superior
+restoration accuracy, demonstrating its strong balance between ef-
+fectiveness and efficiency.
+Metrics
+ACE
+White-balance
+White-Patch
+CIELab
+PAN (Ours)
+PSNR
+26.5843
+27.1237
+26.5123
+25.4175
+28.4421
+SSIM
+0.9106
+0.9125
+0.9063
+0.9016
+0.9418
+LPIPS
+0.6748
+0.0548
+0.0654
+0.0715
+0.0469
+RMSE
+1.0840
+0.9762
+1.0743
+1.1562
+0.9418
+Table 5. Comparison of color correction methods on WSRD+
+[46]. PAN achieves the best result among all compared methods.
+declines, with the most significant drop on real-world
+data (WSRD+), demonstrating that cross-modal geometric-
+semantic alignment is critical under complex lighting where
+single-modality features are insufficient.
+Modality contributions.
+Ablating geometric priors
+(depth, normals) reduces PSNR and SSIM, while remov-
+ing semantic embeddings decreases performance.
+This
+asymmetry suggests semantic context provides stronger
+global consistency, while geometric cues offer complemen-
+tary local precision—particularly evident in high-frequency
+shadow boundaries where geometry dominates.
+Rectification mechanism. Disabling differential rectifi-
+cation (λ = 0) degrades results, confirming that the subtrac-
+tion operation Arect = Asem −λ · Ageo effectively balances
+modal responses rather than naively fusing them.
+These results validate that PAN and GSRA address com-
+plementary challenges: PAN achieves global illumination
+ISTD+ Dataset
+WSRD+ Dataset
+Configuration
+PSNR ↑/ SSIM ↑
+PSNR ↑/ SSIM ↑
+Full (PAN + GSRA)
+34.48 / 0.960
+28.44 / 0.942
+w/o PAN
+33.15 / 0.952
+28.17 / 0.925
+w/o GSRA (Using cross-attention)
+32.56 / 0.934
+26.92 / 0.920
+w/o Feature mixing
+33.24 / 0.954
+27.68 / 0.936
+w/o Geometric prior
+33.52 / 0.956
+27.85 / 0.938
+w/o Semantic prior
+33.38 / 0.955
+27.71 / 0.937
+w/o Rectification (λ = 0)
+32.89 / 0.951
+27.32 / 0.932
+Table 6. Ablation results of PhaSR components. Each module
+contributes to illumination alignment and feature consistency. Re-
+moving GSRA leads to notable drops, validating the necessity of
+both physically aligned prior and cross-modal rectification.
+consistency, while GSRA resolves local modal conflicts,
+enabling physically coherent shadow removal under di-
+verse lighting conditions. Notably, the larger performance
+gains on real-world indoor datasets compared to outdoor
+benchmarks confirm that explicit prior alignment becomes
+increasingly critical as the complexity of environmental
+lighting grows—from single-light direct shadows to multi-
+source ambient illumination.
+5. Conclusion
+We present PhaSR, a framework for shadow removal
+through dual-level physically aligned prior integration.
+At the global level, Physically Aligned Normalization
+(PAN) performs closed-form illumination correction via
+log-domain Retinex decomposition, providing a stable
+foundation that enhances existing architectures across di-
+verse lighting conditions. At the local level, Geometric-
+Semantic Rectification Attention (GSRA) extends differen-
+tial attention to cross-modal alignment, harmonizing depth-
+derived geometry with semantic embeddings to resolve
+modal conflicts under varying illumination. Experiments
+demonstrate that PhaSR achieves competitive performance
+on standard shadow removal benchmarks while generaliz-
+ing robustly to ambient lighting normalization scenarios.
+
+PhaSR: Generalized Image Shadow Removal with Physically Aligned Priors
+Supplementary Material
+Overview
+This supplementary material provides comprehensive de-
+tails to support the main paper. The document is organized
+as follows:
+• Section 1:
+Data Loading and Preprocessing –
+Details on depth-to-normal conversion, normal map
+normalization,
+and input preparation pipeline using
+DepthAnything-V2 and DINO-V2.
+• Section 2: Algorithm Description – Complete algorith-
+mic specification of the PhaSR training pipeline, includ-
+ing physically aligned normalization (PAN), multi-scale
+feature extraction with prior integration, and geometric-
+semantic rectification attention (GSRA).
+• Section 3:
+Cross-Dataset Generalization – Eval-
+uation of robustness across diverse lighting condi-
+tions through cross-dataset experiments (Ambient6K ↔
+ISTD), demonstrating PhaSR’s superior generalization
+from single-source outdoor shadows to multi-source in-
+door ambient lighting.
+• Section 4: Additional Visual Comparisons – Extensive
+qualitative results on ISTD+, WSRD+, INS, and Am-
+bient6K datasets, demonstrating PhaSR’s effectiveness
+across diverse shadow removal scenarios.
+• Section 5: Additional Feature Map Comparison – In-
+termediate feature map visualization comparing PhaSR
+with OmniSR and DenseSR, validating the effectiveness
+of physically aligned prior propagation.
+• Section 6: Failure Case Study – Analysis of challenging
+scenarios including dark intrinsic materials and specular
+surfaces, discussing limitations and future directions.
+• Section 7: Network Architecture Details – Complete
+architecture specification with layer-by-layer breakdown
+of input/output dimensions and operations.
+6. Data Loading and Preprocessing
+PhaSR requires four inputs: (1) RGB image, (2) depth
+map, (3) normal map, and (4) semantic feature map.
+Depth and semantic features are extracted using pretrained
+DepthAnything-v2 [55] and DINO-v2 [37] models, fol-
+lowing common practice in recent shadow removal litera-
+ture [28, 53]. Normal maps are derived from depth using
+standard geometric conversion.
+Depth-to-Normal Conversion. Given depth map D ∈
+RH×W and camera field-of-view (FOV = 60°), we first
+compute camera intrinsics:
+f =
+W
+2 tan(FOVrad/2),
+cx = W −1
+
+,
+cy = H −1
+
+,
+(8)
+where FOVrad = FOVdeg × π/180. Each pixel (x, y) with
+depth z = D[y, x] is unprojected to 3D coordinates via the
+pinhole camera model:
+x3d = (x −cx)z
+f
+,
+y3d = (y −cy)z
+f
+.
+(9)
+The resulting 3D point cloud is then converted to surface
+normals via spatial gradients, yielding N ∈RH×W ×3.
+Normal Map Normalization. Raw normal maps nraw ∈
+[0, 1]3 from depth estimation are rescaled to [−1, 1] and ℓ2-
+normalized:
+nrescaled = 2nraw−1,
+nnormalized =
+nrescaled
+∥nrescaled∥2 + ϵ, (10)
+where ϵ = 10−20 ensures numerical stability. This pro-
+duces unit-length normal vectors suitable for geometric fea-
+ture extraction in GSRA.
+7. Algorithm Description
+We provide a detailed algorithmic description of PhaSR
+in Algorithm 1, which illustrates the complete train-
+ing pipeline including physically aligned normalization,
+multi-scale feature extraction with prior integration, and
+geometric-semantic rectification attention.
+8. Cross-Dataset Generalization
+To evaluate robustness across diverse lighting conditions,
+we conduct cross-dataset experiments where models trained
+on one dataset are directly tested on another without fine-
+tuning. As shown in Table 7, PhaSR demonstrates compet-
+itive generalization capability in both directions.
+Ambient6K →ISTD. When trained on complex multi-
+source indoor lighting and tested on single-light outdoor
+shadows, PhaSR consistently outperforms both OmniSR
+[53] and ShadowFormer [9], achieving improvements of
++1.46 dB and +3.32 dB in PSNR respectively. These results
+suggest that our physically aligned design—global illumi-
+nation normalization via PAN and local geometric-semantic
+rectification via GSRA—may contribute to effective gener-
+alization from complex to simpler lighting scenarios.
+ISTD →Ambient6K. The reverse direction poses
+greater challenges, as models trained on direct single-light
+shadows must adapt to multi-source ambient illumination
+
+Algorithm 1 PhaSR Training Algorithm
+Require: Shadow image I ∈RH×W ×3, ground truth IGT
+Ensure: Predicted shadow-free image ˆI
+1: Stage 1: Physically Aligned Normalization (PAN)
+2: Gray-world: Inorm = I ·
+E[I]
+Ec[I]+ϵ
+3: Log-domain: log ˆS = EH,W [log(Inorm + ϵ)], log ˆR = log(Inorm +
+ϵ) −log ˆS
+4: Recombine: ˆI =
+ˆR⊗ˆS−min( ˆR⊗ˆS)
+max( ˆR⊗ˆS)−min( ˆR⊗ˆS)+ϵ
+5:
+where ˆR = exp(log ˆR), ˆS = exp(log ˆS)
+6: Stage 2: Prior Extraction
+7: Extract features: F(i)
+D = DINOV2(I) for i = 0, 1, 2, 3
+8: Extract depth and normals: D = DepthV2(I), N = ∇D
+9: Stage 3: Encoder with Prior Fusion
+10: Input projection: y0 = InputProj([ˆI, Dz])
+11: for ℓ= 0, . . . , 3 do
+12:
+Project DINO: F(ℓ)
+d
+= Proj(Up(F(ℓ)
+D ))
+13:
+Fuse: yℓ= yℓ+ αℓF(ℓ)
+d
+14:
+if ℓ< 3 then
+15:
+Encode: cℓ= TEBℓ(yℓ, F(ℓ)
+D , D(ℓ), N(ℓ))
+16:
+Downsample: yℓ+1 = Down(cℓ)
+17:
+end if
+18: end for
+19: Stage 4: Bottleneck
+20: Concatenate scales: Fcat = Conv([F(0)
+D , F(1)
+D , F(2)
+D , F(3)
+D ])
+21: Bottleneck: c3 = PATB([y3 + α3F(3)
+d , Fcat], F(3)
+D , D(3), N(3))
+22: Stage 5: Decoder with GSRA
+23: for ℓ= 2, 1, 0 do
+24:
+Upsample and skip: uℓ= [Up(cℓ+1), cℓ]
+25:
+Feature mixing: F′
+g = uℓ+ αgF(ℓ)
+g , F′
+s = uℓ+ αsF(ℓ)
+s
+26:
+Generate KV: Kg, Vg = Fg(F′
+g); Ks, Vs = Fs(F′
+s)
+27:
+Compute attention: Ag = SoftMax(QK⊤
+g /
+√
+d + B)
+28:
+As = SoftMax(QK⊤
+s /
+√
+d + B)
+29:
+Rectify: Ar = As −λ(ℓ)Ag
+30:
+Aggregate: Fo = [ArVg, ArVs]
+31:
+Decode: cℓ= TDBℓ(Fo, F(ℓ)
+D , D(ℓ), N(ℓ))
+32: end for
+33: Stage 6: Output and Loss
+34: Output: ˆI = OutProj(c0) + I
+35: Loss: L = λC
+q
+∥ˆI −IGT∥2
+2 + ϵ2 + λS(1 −SSIM(ˆI, IGT))
+with overlapping light contributions and chromatic shifts.
+PhaSR maintains strong performance, outperforming com-
+peting methods by +2.33 dB over OmniSR and +4.90 dB
+over ShadowFormer. Notably, while all methods experience
+performance drops compared to in-domain training, PhaSR
+exhibits relatively smaller degradation, suggesting that ex-
+plicit physical alignment may be associated with more ro-
+bust feature learning across illumination distributions.
+These results indicate that PhaSR’s dual-level alignment
+strategy—closed-form illumination correction followed by
+cross-modal prior rectification—provides a design that gen-
+eralizes effectively across datasets, from single-source out-
+door shadows to multi-source indoor ambient lighting.
+Table 7.
+Cross-dataset generalization evaluation.
+Models
+trained on one dataset and tested on another to evaluate robust-
+ness across different lighting conditions.
+Method
+Ambient6K →ISTD
+ISTD →Ambient6K
+PSNR↑
+SSIM↑
+PSNR↑
+SSIM↑
+ShadowFormer [9]
+24.32
+0.872
+16.25
+0.671
+OmniSR [53]
+26.18
+0.901
+18.82
+0.733
+PhaSR (Ours)
+27.64
+0.923
+21.15
+0.798
+Reference: In-domain performance
+ShadowFormer (ISTD)
+29.90
+0.960
+—
+—
+OmniSR (ISTD)
+30.45
+0.964
+—
+—
+PhaSR (ISTD)
+30.73
+0.960
+—
+—
+ShadowFormer (Ambient6K)
+—
+—
+19.02
+0.750
+OmniSR (Ambient6K)
+—
+—
+23.01
+0.830
+PhaSR (Ambient6K)
+—
+—
+23.32
+0.834
+OmniSR
+PhaSR (Ours)
+
+Step
+Loss
+Figure 10. Training error of OmniSR [53] with and our method
+on WSRD+ dataset [46]. PhaSR yields an accelerated rate of
+error reduction.
+9. Additional Visual Comparisons
+We provide additional qualitative results to demonstrate the
+effectiveness of PhaSR across diverse shadow removal sce-
+narios. Figures 12, 13, 14, and 15 show comprehensive
+comparisons with state-of-the-art methods on ISTD+ [23],
+WSRD+ [46], INS [53], and Ambient6K [47] datasets, re-
+spectively.
+As shown in Figure 12, PhaSR generally recovers
+sharper shadow boundaries and preserves texture details
+compared to competing methods on real-world outdoor
+scenes. The proposed PAN effectively normalizes illumina-
+tion variations, while GSRA resolves geometric-semantic
+ambiguities, leading to cleaner shadow-free results.
+Figure 13 demonstrates PhaSR’s strong performance on
+high-resolution indoor scenes with complex single-source
+lighting. Compared to OmniSR [53] and DenseSR [28],
+which show some smoothing or color artifacts in certain
+regions, our method maintains photorealistic appearance
+while effectively removing shadow artifacts.
+In Figure 14, we observe that PhaSR performs well
+on challenging synthesized indoor scenarios with indirect
+lighting and soft shadows. The physically aligned normal-
+ization appears to facilitate robust generalization across di-
+verse illumination conditions, while the cross-modal atten-
+
+OmniSR
+Ground-truth
+Input
+PhaSR (Ours)
+Figure 11. Failure cases on Ambient6K [47]. Both PhaSR and
+existing methods struggle with shadows on intrinsically dark ob-
+jects (top) or specular/metallic surfaces (bottom).
+tion mechanism effectively disentangles reflectance from
+shading.
+Figure 15 further validates PhaSR’s generalization ca-
+pability on the challenging Ambient6K dataset, which fea-
+tures complex multi-source illumination and diffuse indirect
+lighting that goes beyond conventional shadow removal.
+Our method outperforms both dedicated ambient light nor-
+malization methods (IFBlend [47]) and shadow removal
+methods (OmniSR [53], DenseSR [28]). These results are
+consistent with the hypothesis that physically aligned de-
+sign may facilitate handling diverse real-world lighting con-
+ditions.
+10. Additional Feature Map Comparison
+Figure 16 visualizes intermediate feature maps from the en-
+coder and decoder stages across different methods. Com-
+pared to OmniSR [53] and DenseSR [28], PhaSR’s feature
+maps suggest several potential advantages:
+• Shadow localization: The bottleneck features show more
+focused activations in shadow regions, even under com-
+plex ambient lighting.
+• Prior propagation: Geometric and semantic informa-
+tion appears well-preserved through skip connections via
+GSRA.
+• Decoder activations: The decoder shows progressive re-
+finement with reduced high-frequency noise.
+These visualizations provide qualitative evidence that the
+proposed physically aligned design may enable more coher-
+ent multi-scale feature learning for shadow removal.
+11. Failure Case Study
+Despite competitive performance across datasets, certain
+scenarios remain challenging for current shadow removal
+methods. As shown in Figure 11, both PhaSR and state-of-
+the-art approaches like OmniSR [53] encounter difficulties
+in two cases:
+Dark intrinsic materials. Shadows on low-reflectance
+objects (e.g., black surfaces) create ambiguity between
+shadow-induced darkness and intrinsic material properties.
+Without additional cues like polarization, methods strug-
+gle to distinguish these cases, leading to under-correction
+or over-brightening.
+Specular surfaces. Metallic and specular materials vi-
+olate Lambertian assumptions underlying most shadow re-
+moval methods. View-dependent highlights and non-linear
+light transport cause color artifacts and inconsistent restora-
+tion when shadows interact with such surfaces.
+These challenges suggest future directions including
+material-aware priors and non-Lambertian reflectance mod-
+eling for ambient light normalization.
+12. Network Architecture Details
+We provide the complete architecture specification of
+PhaSR in Table 8. The network consists of six main stages:
+physically aligned normalization, prior extraction, multi-
+scale encoder with prior fusion, bottleneck, hierarchical de-
+coder with GSRA, and output generation.
+References
+[1] Luis Bolanos, Shih-Yang Su, and Helge Rhodin. Gaussian
+shadow casting for neural characters. In The Conference on
+Computer Vision and Pattern Recognition, 2024. 1
+[2] G. Buchsbaum. A spatial processor model for object colour
+perception. Journal of the Franklin Institute, 310(1):1–26,
+1980. 4
+[3] Rita Cucchiara, Costantino Grana, Massimo Piccardi, and
+Andrea Prati. Detecting moving objects, ghosts, and shad-
+ows in video streams. IEEE transactions on pattern analysis
+and machine intelligence, 25(10):1337–1342, 2003. 2
+[4] Xiaodong Cun, Chi-Man Pun, and Cheng Shi.
+Towards
+ghost-free shadow removal via dual hierarchical aggrega-
+tion network and shadow matting gan.
+In Proceedings of
+the AAAI conference on artificial intelligence, pages 10680–
+10687, 2020. 6
+[5] Rakesh Kumar Das, Madhu Shandilya, Shubham Sharma,
+and Dhanshree Kulkarni. A survey on shadow detection and
+removal in images. In 2017 International Conference on Re-
+cent Innovations in Signal processing and Embedded Sys-
+tems (RISE), pages 175–180, 2017. 1
+[6] Wei Dong, Han Zhou, Yuqiong Tian, Jingke Sun, Xiaohong
+Liu, Guangtao Zhai, and Jun Chen. Shadowrefiner: Towards
+mask-free shadow removal via fast fourier transformer. In
+Proceedings of the IEEE/CVF Conference on Computer Vi-
+
+PhaSR (Ours)
+DenseSR
+OmniSR
+StableShadowDiffusion
+Ground-truth
+Input
+PhaSR (Ours)
+DenseSR
+OmniSR
+StableShadowDiffusion
+Ground-truth
+Input
+PhaSR (Ours)
+DenseSR
+OmniSR
+StableShadowDiffusion
+Ground-truth
+Input
+PhaSR (Ours)
+DenseSR
+OmniSR
+StableShadowDiffusion
+Ground-truth
+Input
+Figure 12. Additional visual comparisons on ISTD+ [23]. PhaSR achieves superior shadow removal with sharper boundaries and better
+texture preservation compared to state-of-the-art methods.
+PhaSR (Ours)
+Input
+DenseSR
+ShadowRefiner
+StableShadowDiffusion
+Figure 13. Additional visual comparisons on WSRD+ [46]. Our method effectively handles high-resolution indoor scenes with complex
+single-source lighting while maintaining photorealistic quality.
+sion and Pattern Recognition, pages 6208–6217, 2024. 2,
+
+[7] Wei Dong, Han Zhou, Seyed Amirreza Mousavi, and Jun
+Chen. Retinex-guided histogram transformer for mask-free
+
+PhaSR (Ours)
+DenseSR
+OmniSR
+StableShadowDiffusion
+Ground-truth
+Input
+Input
+Ground-truth
+PhaSR (Ours)
+OmniSR
+DenseSR
+StableShadowDiffusion
+Figure 14. Additional visual comparisons on INS [53]. PhaSR demonstrates robust generalization to synthesized indoor scenes with
+indirect illumination and soft shadows.
+DenseSR
+OmniSR
+Ground-truth
+Input
+PhaSR (Ours)
+Figure 15. Additional visual comparisons on Ambient6K [47]. PhaSR shows superior generalization to complex multi-source illumi-
+nation and diffuse indirect lighting beyond conventional shadow removal, outperforming both ambient light normalization and shadow
+removal methods.
+shadow removal. In 2025 IEEE/CVF Conference on Com-
+puter Vision and Pattern Recognition Workshops (CVPRW),
+pages 1462–1472, 2025. 1, 2, 3, 4, 6
+[8] Lan Fu, Changqing Zhou, Qing Guo, Felix Juefei-Xu,
+Hongkai Yu, Wei Feng, Yang Liu, and Song Wang. Auto-
+exposure fusion for single-image shadow removal. In Pro-
+ceedings of the IEEE/CVF conference on computer vision
+and pattern recognition, pages 10571–10580, 2021. 1, 6
+[9] Lanqing Guo, Siyu Huang, Ding Liu, Hao Cheng, and Bihan
+Wen. Shadowformer: global context helps shadow removal.
+
+(a) OmniSR
+(b) DenseSR
+(c) PhaSR (Ours)
+(a) OmniSR
+(b) DenseSR
+(c) PhaSR (Ours)
+Figure 16. Intermediate feature map visualization on ISTD+ [23]. Our method shows stronger shadow localization in bottleneck
+features and cleaner decoder activations compared to OmniSR [53] and DenseSR [28], validating the effectiveness of physically aligned
+prior propagation.
+In Proceedings of the AAAI conference on artificial intelli-
+gence, pages 710–718, 2023. 2, 6, 8, 1
+[10] Lanqing Guo, Chong Wang, Wenhan Yang, Siyu Huang,
+Yufei Wang, Hanspeter Pfister, and Bihan Wen. Shadowd-
+iffusion: When degradation prior meets diffusion model for
+shadow removal.
+In Proceedings of the IEEE/CVF Con-
+ference on Computer Vision and Pattern Recognition, pages
+14049–14058, 2023. 2, 6
+[11] Lanqing Guo, Chong Wang, Wenhan Yang, Siyu Huang,
+Yufei Wang, Hanspeter Pfister, and Bihan Wen. Shadowd-
+iffusion: When degradation prior meets diffusion model for
+shadow removal.
+In Proceedings of the IEEE/CVF con-
+ference on computer vision and pattern recognition, pages
+14049–14058, 2023. 7, 8
+[12] Lanqing Guo, Chong Wang, Wenhan Yang, Yufei Wang,
+and Bihan Wen.
+Boundary-aware divide and conquer: A
+diffusion-based solution for unsupervised shadow removal.
+In 2023 IEEE/CVF International Conference on Computer
+Vision (ICCV), pages 12999–13008, 2023. 3
+[13] Kai He, Ruofan Liang, Jacob Munkberg, Jon Hasselgren,
+Nandita Vijaykumar, Alexander Keller, Sanja Fidler, Igor
+Gilitschenski, Zan Gojcic, and Zian Wang.
+Unirelight:
+Learning joint decomposition and synthesis for video relight-
+ing. arXiv preprint arXiv:2506.15673, 2025. 2
+[14] Berthold K. P. Horn and Michael J. Brooks. Introduction
+to shape from shading, page 1–28. MIT Press, Cambridge,
+MA, USA, 1989. 4
+[15] Chih-Chung Hsu, Chih-Yu Jian, Eng-Shen Tu, Chia-Ming
+Lee, and Guan-Lin Chen.
+Real-time compressed sensing
+for joint hyperspectral image transmission and restoration
+for cubesat. IEEE Transactions on Geoscience and Remote
+Sensing, 62:1–16, 2024. 1
+
+Table 8. Architecture of PhaSR. The model takes a H × W input image and processes it through PAN normalization, multi-scale
+Transformer encoder-decoder with DINO-V2 semantic priors and depth-derived geometric priors.
+Block Name
+Output Size
+Operation
+Stage
+Stage 1: Physically Aligned Normalization (PAN)
+Global Estimation
+H × W × 3
+Inorm = I/(E[I] + ϵ)
+Eq. 2
+Local Normalization
+H × W × 3
+G(x) = E[I]/(EΩ(x)[I] + ϵ)
+Eq. 3
+Log-domain Decomposition
+H × W × 3
+log ˆS, log ˆR separation
+Eq. 4-5
+Recombination
+H × W × 3
+ˆI = clamp( ˆR ⊗ˆS, 0, 1)
+Eq. 5
+Stage 2: Prior Extraction
+Semantic Prior (DINO-V2)
+DINO Scale 0
+H/1 × W/1 × 1024
+Frozen pretrained features
+F(0)
+D
+DINO Scale 1
+H/2 × W/2 × 1024
+Frozen pretrained features
+F(1)
+D
+DINO Scale 2
+H/4 × W/4 × 1024
+Frozen pretrained features
+F(2)
+D
+DINO Scale 3
+H/8 × W/8 × 1024
+Frozen pretrained features
+F(3)
+D
+Geometric Prior
+Depth Extraction
+H × W × 1
+DepthAnything-V2
+D
+Normal Computation
+H × W × 3
+Gradient-based ∇D
+N
+Stage 3: Multi-Scale Encoder with Prior Fusion
+Input Projection
+H × W × C
+Conv 4 →C, C = 32
+y0
+Encoder Level 0 (H × W)
+DINO Projection
+H × W × C
+Conv1×1: 1024 →C
+α0
+TEB (CA+DWT) ×N1
+H × W × C
+N1 = 2 layers
+c0
+Downsample
+H/2 × W/2 × 2C
+Conv4×4, stride=2
+–
+Encoder Level 1 (H/2 × W/2)
+DINO Projection
+H/2 × W/2 × 2C
+Conv1×1: 1024 →2C
+α1
+TEB (CA+DWT) ×N2
+H/2 × W/2 × 2C
+N2 = 2 layers
+c1
+Downsample
+H/4 × W/4 × 4C
+Conv4×4, stride=2
+–
+Encoder Level 2 (H/4 × W/4)
+DINO Projection
+H/4 × W/4 × 4C
+Conv1×1: 1024 →4C
+α2
+TEB (GSRA) ×N3
+H/4 × W/4 × 4C
+N3 = 2 layers
+c2
+Downsample
+H/8 × W/8 × 8C
+Conv4×4, stride=2
+–
+Stage 4: Bottleneck (H/8 × W/8)
+Multi-Scale DINO Fusion
+H/8 × W/8 × 8C
+Concat + Conv1×1: 4096 →8C
+Fcat
+DINO Projection Level 3
+H/8 × W/8 × 8C
+Conv1×1: 1024 →8C
+α3
+PATB (GSRA) ×N4
+H/8 × W/8 × 16C
+N4 = 2 layers, concat input
+c3
+Stage 5: Hierarchical Decoder with GSRA
+Decoder Level 2 (H/4 × W/4)
+Upsample
+H/4 × W/4 × 4C
+ConvTranspose2×2, stride=2
+–
+Skip Connection
+H/4 × W/4 × 8C
+Concat with c2
+u2
+GSRA (Sec. 3.2)
+H/4 × W/4 × 8C
+Geometric-Semantic Rectification
+Eq. 6-10
+TDB (CA+DWT) ×N5
+H/4 × W/4 × 8C
+N5 = 2 layers
+c′
+
+Decoder Level 1 (H/2 × W/2)
+Upsample
+H/2 × W/2 × 2C
+ConvTranspose2×2, stride=2
+–
+Skip Connection
+H/2 × W/2 × 4C
+Concat with c1
+u1
+GSRA (Sec. 3.2)
+H/2 × W/2 × 4C
+Geometric-Semantic Rectification
+Eq. 6-10
+TDB (CA+DWT) ×N6
+H/2 × W/2 × 4C
+N6 = 2 layers
+c′
+
+Decoder Level 0 (H × W)
+Upsample
+H × W × C
+ConvTranspose2×2, stride=2
+–
+Skip Connection
+H × W × 2C
+Concat with c0
+u0
+GSRA (Sec. 3.2)
+H × W × 2C
+Geometric-Semantic Rectification
+Eq. 6-10
+TDB (CA+DWT) ×N7
+H × W × 2C
+N7 = 2 layers
+c′
+
+Stage 6: Output Generation
+Output Projection
+H × W × 3
+Conv3×3: 2C →3
+–
+Residual Connection
+H × W × 3
+ˆI = OutProj(c′
+0) + I
+Final
+
+[16] Jin Hu, Mingjia Li, and Xiaojie Guo. Shadowhack: Hack-
+ing shadows via luminance-color divide and conquer.
+In
+Proceedings of the IEEE/CVF International Conference on
+Computer Vision (ICCV), pages 11403–11413, 2025. 2, 3, 5
+[17] Xiaowei Hu, Chi-Wing Fu, Lei Zhu, Jing Qin, and Pheng-
+Ann Heng.
+Direction-aware spatial context features for
+shadow detection and removal. IEEE transactions on pat-
+tern analysis and machine intelligence, 42(11):2795–2808,
+2019. 6
+[18] Yeying Jin, Aashish Sharma, and Robby T Tan.
+Dc-
+shadownet: Single-image hard and soft shadow removal
+using unsupervised domain-classifier guided network.
+In
+Proceedings of the IEEE/CVF International Conference on
+Computer Vision, pages 5027–5036, 2021. 6
+[19] Yeying Jin, Wei Ye, Wenhan Yang, Yuan Yuan, and Robby T
+Tan. Des3: Adaptive attention-driven self and soft shadow
+removal using vit similarity.
+In Proceedings of the AAAI
+Conference on Artificial Intelligence, pages 2634–2642,
+2024. 1, 2, 8
+[20] Diederik P. Kingma and Jimmy Ba. Adam: A method for
+stochastic optimization. In Proceedings of the 3rd Interna-
+tional Conference on Learning Representations (ICLR), San
+Diego, CA, USA, 2015. OpenReview. 6
+[21] Alexander Kirillov, Eric Mintun, Nikhila Ravi, Hanzi Mao,
+Chloe Rolland, Laura Gustafson, Tete Xiao, Spencer White-
+head, Alexander C Berg, Wan-Yen Lo, et al. Segment any-
+thing. In Proceedings of the IEEE/CVF international confer-
+ence on computer vision, pages 4015–4026, 2023. 3
+[22] Hieu Le and Dimitris Samaras. Shadow removal via shadow
+image decomposition. In Proceedings of the IEEE/CVF In-
+ternational Conference on Computer Vision (ICCV), 2019.
+
+[23] Hieu Le and Dimitris Samaras. Shadow removal via shadow
+image decomposition. In Proceedings of the IEEE/CVF In-
+ternational Conference on Computer Vision, pages 8578–
+8587, 2019. 1, 6, 7, 2, 4
+[24] Hieu Le and Dimitris Samaras. From shadow segmentation
+to shadow removal. In European Conference on Computer
+Vision, pages 264–281. Springer, 2020. 6
+[25] Chenghua Li, Bo Yang, Zhiqi Wu, Gao Chen, Yihan Yu, and
+Shengxiao Zhou. Shadow removal based on diffusion, seg-
+mentation and super-resolution models. In 2024 IEEE/CVF
+Conference on Computer Vision and Pattern Recognition
+Workshops (CVPRW), pages 6045–6054, 2024. 1
+[26] Zhengqin Li, Dilin Wang, Ka Chen, Zhaoyang Lv, Thu
+Nguyen-Phuoc, Milim Lee, Jia-Bin Huang, Lei Xiao, Yufeng
+Zhu, Carl S Marshall, et al.
+Lirm: Large inverse render-
+ing model for progressive reconstruction of shape, materials
+and view-dependent radiance fields. In Proceedings of the
+Computer Vision and Pattern Recognition Conference, pages
+505–517, 2025. 3
+[27] Ruofan Liang, Zan Gojcic, Huan Ling, Jacob Munkberg, Jon
+Hasselgren, Zhi-Hao Lin, Jun Gao, Alexander Keller, Nan-
+dita Vijaykumar, Sanja Fidler, and Zian Wang. Diffusion-
+renderer: Neural inverse and forward rendering with video
+diffusion models. In The IEEE Conference on Computer Vi-
+sion and Pattern Recognition (CVPR), 2025. 2
+[28] Yu-Fan Lin, Chia-Ming Lee, and Chih-Chung Hsu. Densesr:
+Image shadow removal as dense prediction. In Proceedings
+of the 33rd ACM International Conference on Multimedia,
+pages 7026–7035, 2025. 1, 2, 3, 5, 6, 7, 8
+[29] Hengxing Liu, Mingjia Li, and Xiaojie Guo. Regional atten-
+tion for shadow removal. In Proceedings of the 32nd ACM
+International Conference on Multimedia, pages 5949–5957,
+2024. 2
+[30] Jiawei Liu, Qiang Wang, Huijie Fan, Wentao Li, Liangqiong
+Qu, and Yandong Tang. A decoupled multi-task network for
+shadow removal. IEEE Transactions on Multimedia, 2023.
+6, 8
+[31] Yuhao Liu, Zhanghan Ke, Ke Xu, Fang Liu, Zhenwei Wang,
+and Rynson WH Lau. Recasting regional lighting for shadow
+removal. In Proceedings of the AAAI Conference on Artifi-
+cial Intelligence, pages 3810–3818, 2024. 1, 2, 3
+[32] Anagh Malik, Benjamin Attal, Andrew Xie, Matthew
+O’Toole, and David B Lindell.
+Neural inverse rendering
+from propagating light. In CVPR, 2025. 2
+[33] J. J. McCann. Rules for colour constancy. Ophthalmic and
+Physiological Optics, 12(2):175–177, 1992. 3
+[34] Kangfu Mei, Luis Figueroa, Zhe Lin, Zhihong Ding, Scott
+Cohen, and Vishal M Patel.
+Latent feature-guided diffu-
+sion models for shadow removal.
+In Proceedings of the
+IEEE/CVF Winter Conference on Applications of Computer
+Vision, pages 4313–4322, 2024. 2
+[35] Saritha Murali, VK Govindan, and Saidalavi Kalady. A sur-
+vey on shadow removal techniques for single image. Inter-
+national Journal of Image, Graphics and Signal Processing,
+8(12):38, 2016. 1
+[36] Kunpeng Niu, Yanli Liu, Enhua Wu, and Guanyu Xing. A
+boundary-aware network for shadow removal. IEEE Trans-
+actions on Multimedia, 25:6782–6793, 2023. 1
+[37] Maxime Oquab, Timoth´ee Darcet, Th´eo Moutakanni, Huy
+Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernandez,
+Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, Mah-
+moud Assran, Nicolas Ballas, Wojciech Galuba, Russell
+Howes, Po-Yao Huang, Shang-Wen Li, Ishan Misra, Michael
+Rabbat, Vasu Sharma, Gabriel Synnaeve, Hu Xu, Herv´e Je-
+gou, Julien Mairal, Patrick Labatut, Armand Joulin, and Piotr
+Bojanowski. Dinov2: Learning robust visual features with-
+out supervision, 2024. 2, 3, 5, 7, 1
+[38] Liangqiong Qu, Jiandong Tian, Shengfeng He, Yandong
+Tang, and Rynson WH Lau. Deshadownet: A multi-context
+embedding deep network for shadow removal. In Proceed-
+ings of the IEEE/CVF conference on computer vision and
+pattern recognition (CVPR), pages 4067–4075, 2017. 2, 8
+[39] Alessandro Rizzi, Carlo Gatta, and Daniele Marini. A new
+algorithm for unsupervised global and local color correc-
+tion. Pattern Recognition Letters, 24(11):1663–1677, 2003.
+Colour Image Processing and Analysis. First European Con-
+ference on Colour in Graphics, Imaging, and Vision (CGIV
+2002). 3, 7
+[40] Olaf Ronneberger, Philipp Fischer, and Thomas Brox. U-
+net: Convolutional networks for biomedical image segmen-
+tation. In International Conference on Medical image com-
+puting and computer-assisted intervention, pages 234–241.
+Springer, 2015. 2
+
+[41] Neda Salamati, Arthur Germain, and S Siisstrunk. Removing
+shadows from images using color and near-infrared. In 2011
+18th IEEE International Conference on Image Processing,
+pages 1713–1716. IEEE, 2011. 2
+[42] Andres Sanin, Conrad Sanderson, and Brian C. Lovell. Im-
+proved shadow removal for robust person tracking in surveil-
+lance scenarios. In 2010 20th International Conference on
+Pattern Recognition, pages 141–144, 2010. 1
+[43] David Serrano-Lozano, Francisco A. Molina-Bakhos, Danna
+Xue, Yixiong Yang, Maria Pilligua, Ramon Baldrich, Maria
+Vanrell, and Javier Vazquez-Corral. Promptnorm: Image ge-
+ometry guides ambient light normalization. In Proceedings
+of the IEEE/CVF Conference on Computer Vision and Pat-
+tern Recognition (CVPR) Workshops, pages 905–916, 2025.
+
+[44] Yael Shor and Dani Lischinski. The shadow meets the mask:
+Pyramid-based shadow removal. In Computer Graphics Fo-
+rum, pages 577–586. Wiley Online Library, 2008. 2
+[45] Arti Tiwari, Pradeep Kumar Singh, and Sobia Amin. A sur-
+vey on shadow detection and removal in images and video
+sequences. In 2016 6th International Conference-Cloud Sys-
+tem and Big Data Engineering (Confluence), pages 518–523.
+IEEE, 2016. 1
+[46] Florin-Alexandru Vasluianu, Tim Seizinger, and Radu Tim-
+ofte. Wsrd: A novel benchmark for high resolution image
+shadow removal. In 2023 IEEE/CVF Conference on Com-
+puter Vision and Pattern Recognition Workshops (CVPRW),
+pages 1826–1835, 2023. 6, 7, 8, 2, 4
+[47] Florin-Alexandru Vasluianu, Tim Seizinger, Zongwei Wu,
+Rakesh Ranjan, and Radu Timofte. Towards image ambient
+lighting normalization. In European Conference on Com-
+puter Vision, pages 385–404. Springer, 2024. 2, 3, 4, 5, 6, 7,
+
+[48] Florin-Alexandru Vasluianu, Tim Seizinger, Zhuyun Zhou,
+Zongwei Wu, Cailian Chen, and Radu Timofte. Ntire 2024
+image shadow removal challenge report. In 2024 IEEE/CVF
+Conference on Computer Vision and Pattern Recognition
+Workshops (CVPRW), pages 6547–6570, 2024. 6, 7
+[49] Florin-Alexandru Vasluianu, Tim Seizinger, Zongwei Wu,
+and Radu Timofte.
+After the party: Navigating the map-
+ping from color to ambient lighting.
+In Proceedings of
+the IEEE/CVF International Conference on Computer Vision
+(ICCV), pages 9218–9229, 2025. 2, 3, 4, 5, 6, 7, 8
+[50] Jifeng Wang, Xiang Li, and Jian Yang.
+Stacked condi-
+tional generative adversarial networks for jointly learning
+shadow detection and shadow removal. In Proceedings of
+the IEEE conference on computer vision and pattern recog-
+nition, pages 1788–1797, 2018. 6, 8
+[51] Silvan Weder, Guillermo Garcia-Hernando, ´Aron Monsz-
+part, Marc Pollefeys, Gabriel J. Brostow, Michael Firman,
+and Sara Vicente. Removing objects from neural radiance
+fields. In Proceedings of the IEEE/CVF Conference on Com-
+puter Vision and Pattern Recognition (CVPR), pages 16528–
+16538, 2023. 1
+[52] Jie Xiao, Xueyang Fu, Yurui Zhu, Dong Li, Jie Huang,
+Kai Zhu, and Zheng-Jun Zha. Homoformer: Homogenized
+transformer for image shadow removal. In Proceedings of
+the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), pages 25617–25626, 2024. 1, 2
+[53] Jiamin Xu, Zelong Li, Yuxin Zheng, Chenyu Huang, Ren-
+shu Gu, Weiwei Xu, and Gang Xu. Omnisr: Shadow re-
+moval under direct and indirect lighting. In Proceedings of
+the AAAI Conference on Artificial Intelligence, pages 8887–
+8895, 2025. 1, 2, 3, 5, 6, 7, 8
+[54] Jiamin Xu, Yuxin Zheng, Zelong Li, Chi Wang, Renshu Gu,
+Weiwei Xu, and Gang Xu. Detail-preserving latent diffusion
+for stable shadow removal. In 2025 IEEE/CVF Conference
+on Computer Vision and Pattern Recognition (CVPR), pages
+7592–7602, 2025. 1, 2, 6, 7, 8
+[55] Lihe Yang, Bingyi Kang, Zilong Huang, Zhen Zhao, Xiao-
+gang Xu, Jiashi Feng, and Hengshuang Zhao. Depth any-
+thing v2. Advances in Neural Information Processing Sys-
+tems, 37:21875–21911, 2024. 2, 3, 5, 7, 1
+[56] Qingxiong Yang,
+Kar-Han Tan,
+and Narendra Ahuja.
+Shadow removal using bilateral filtering. IEEE Transactions
+on Image processing, 21(10):4361–4368, 2012. 1
+[57] Ziyi Yang, Yanzhen Chen, Xinyu Gao, Yazhen Yuan, Yu
+Wu, Xiaowei Zhou, and Xiaogang Jin.
+Sire-ir: Inverse
+rendering for brdf reconstruction with shadow and illumi-
+nation removal in high-illuminance scenes. arXiv preprint
+arXiv:2310.13030, 2023. 2
+[58] Tianzhu Ye, Li Dong, Yuqing Xia, Yutao Sun, Yi Zhu, Gao
+Huang, and Furu Wei. Differential transformer. In Proceed-
+ings of the 13th International Conference on Learning Rep-
+resentations (ICLR), Online, 2025. OpenReview. 2, 5
+[59] Syed Waqas Zamir, Aditya Arora, Salman Khan, Munawar
+Hayat, Fahad Shahbaz Khan, Ming-Hsuan Yang, and Ling
+Shao. Learning enriched features for real image restoration
+and enhancement. In IEEE/CVF European Conference on
+Computer Vision (ECCV), 2020. 5
+[60] Ling Zhang, Qing Zhang, and Chunxia Xiao. Shadow re-
+mover: Image shadow removal based on illumination recov-
+ering optimization. IEEE Transactions on Image Processing,
+24(11):4623–4636, 2015. 2
+[61] Yurui Zhu, Jie Huang, Xueyang Fu, Feng Zhao, Qibin Sun,
+and Zheng-Jun Zha. Bijective mapping network for shadow
+removal.
+In Proceedings of the IEEE/CVF Conference
+on Computer Vision and Pattern Recognition, pages 5627–
+5636, 2022. 6

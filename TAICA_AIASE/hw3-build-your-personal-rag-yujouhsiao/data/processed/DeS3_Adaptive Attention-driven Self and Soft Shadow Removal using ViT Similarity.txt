@@ -1,0 +1,978 @@
+DeS3: Adaptive Attention-Driven Self and Soft Shadow Removal
+Using ViT Similarity
+Yeying Jin1, Wei Ye2, Wenhan Yang3, Yuan Yuan2, Robby T. Tan 1
+1National University of Singapore
+2Huawei International Pte Ltd
+3Peng Cheng Laboratory
+e0178303@u.nus.edu, yewei10@huawei.com, yangwh@pcl.ac.cn, yuanyuan10@huawei.com, robby.tan@nus.edu.sg
+Abstract
+Removing soft and self shadows that lack clear boundaries
+from a single image is still challenging. Self shadows are
+shadows that are cast on the object itself. Most existing meth-
+ods rely on binary shadow masks, without considering the
+ambiguous boundaries of soft and self shadows. In this pa-
+per, we present DeS3, a method that removes hard, soft and
+self shadows based on adaptive attention and ViT similar-
+ity. Our novel ViT similarity loss utilizes features extracted
+from a pre-trained Vision Transformer. This loss helps guide
+the reverse sampling towards recovering scene structures. Our
+adaptive attention is able to differentiate shadow regions from
+the underlying objects, as well as shadow regions from the
+object casting the shadow. This capability enables DeS3 to
+better recover the structures of objects even when they are
+partially occluded by shadows. Different from existing meth-
+ods that rely on constraints during the training phase, we in-
+corporate the ViT similarity during the sampling stage. Our
+method outperforms state-of-the-art methods on the SRD,
+AISTD, LRSS, USR and UIUC datasets, removing hard, soft,
+and self shadows robustly. Specifically, our method outper-
+forms the SOTA method by 16% of the RMSE of the whole
+image on the LRSS dataset.
+Introduction
+Shadows can be categorized into hard shadows, soft shad-
+ows, and self shadows (Salvador, Cavallaro, and Ebrahimi
+2004; Huang and Chen 2009). When an object blocks beams
+of light, shadows are formed on surfaces or nearby objects,
+which are referred to as hard and soft shadows. Hard shad-
+ows have sharp boundaries, while soft shadows gradually
+transition from shadow to non-shadow regions without any
+distinct boundaries. Self shadows occur when a portion of
+an object obstructs beams of light, resulting in shadows be-
+ing cast on the object itself. Removing all types of shadows
+is intractable due to ambiguities between shadow and non-
+shadow regions. Soft and self shadows are particularly chal-
+lenging to identify and remove compared to hard shadows.
+To remove shadows, most of the methods use an off-the-
+shelf shadow detection method (Zhu et al. 2018) or user in-
+teraction (Gryka, Terry, and Brostow 2015) to obtain binary
+shadow masks. However, these binary shadow masks are
+Copyright © 2024, Association for the Advancement of Artificial
+Intelligence (www.aaai.org). All rights reserved.
+Figure 1: The results of SOTA supervised method (Wan et al.
+2022) and weakly-supervised method (Liu et al. 2021b) in
+removing (a) self shadow, (b) soft shadow, and (c) hard
+shadow. Our DeS3 can preserve meaningful objects (duck,
+paper, bollard, etc.) during the reverse sampling, and achieve
+better shadow removal results.
+problematic to acquire, particularly for soft and self shad-
+ows as shown in Fig. 3. Moreover, current shadow removal
+methods fail to handle self shadow images since obtaining
+the ground truth for outdoor self shadows is intractable.
+The weakly-supervised methods (Le and Samaras 2020;
+Liu et al. 2021b) require binary shadow masks to distin-
+guish shadow and shadow-free patches. These patches from
+the same images can reduce the domain gap of shadow and
+shadow-free domains. However, cropping patches is time-
+consuming (Liu et al. 2021b) and synthesizing shadows on
+the shadow-free regions cannot represent real-world shadow
+images. Moreover, these weakly-supervised methods require
+shadows to be homogeneous, which is often not the case,
+particularly for self shadows and soft shadows.
+Existing unsupervised methods (Hu et al. 2019b; Liu et al.
+2021a; Jin, Sharma, and Tan 2021) are GAN-based (Zhu
+et al. 2017), which require unpaired shadow and shadow-
+free images for training. They largely rely on the statisti-
+cal similarity between images from the two domains (Le
+and Samaras 2020) (shadow and shadow-free domains). Un-
+fortunately, once the two domains are statistically differ-
+ent, these methods produce hallucination/fake contents (Zhu
+et al. 2018) and suffer from unstable training.
+arXiv:2211.08089v4  [cs.CV]  14 Apr 2024
+
+Most SOTA methods rely on masks, but obtaining masks
+for self and soft shadows is intractable. Fixed attention
+in (Jin, Sharma, and Tan 2021) for self-shadows are unre-
+liable. Hence, we propose an adaptive attention to progres-
+sively focus on self-shadows. For this reason, we employ the
+diffusion. Unlike other generative models, diffusion works
+progressively.
+In this paper, we introduce DeS31, a diffusion-based
+method that removes hard, soft, and self shadows from a sin-
+gle image using adaptive attention and ViT similarity. “De”
+means “DeShadow”, “S3” means three types of shadows.
+Each step in the diffusion process brings about changes in
+our adaptive attention, as shown in Fig. 4, enabling DeS3
+to effectively eliminate self and soft shadows that lack clear
+boundaries. Moreover, using the ViT similarity, our DeS3
+can preserve object structures even when the object is par-
+tially occluded by self and soft shadows. To guide the re-
+verse sampling in estimating the structural features, our ba-
+sic idea is to inject the pretrained features from DINO-
+ViT (Caron et al. 2021). Specifically, since the keys’ self-
+similarity (Shechtman and Irani 2007) contains object struc-
+tures (Tumanyan et al. 2022), they are utilized to compute
+the ViT similarity loss between the denoised samples and
+the input shadow condition. As shown in Fig. 1, our method
+can remove shadows and retain various objects (duck, paper,
+bollard, etc.).
+In summary, we make the following contributions:
+1. We introduce DeS3, the first shadow removal network,
+that performs shadow removal robustly on hard, soft and
+self shadows from a single image.
+2. Our DeS3 does not require shadow masks from the
+dataset or a shadow detector. Through the adaptive at-
+tention in the progressive diffusion process, DeS3 learns
+to adjust to all types of shadow regions, particularly self-
+shadow regions.
+3. To maintain object structure features, we integrate the
+ViT similarity loss into the reverse sampling. ViT’s fea-
+tures are independent from shadows and thus can extract
+structures more robustly.
+Comprehensive experiments on the SRD, AISTD, LRSS,
+UIUC and USR datasets demonstrate that DeS3 outperforms
+the state-of-the-art methods, particularly on self and soft
+shadows. Our DeS3 outperforms ShadowDiffusion (Guo
+et al. 2023b) by 16% error reduction (from 3.49 to 3.01) in
+terms of RMSE on the overall areas of the LRSS dataset.
+Related Work
+Different image priors have been explored for single im-
+age shadow removal, e.g., modeling of illumination and
+color (Finlayson et al. 2005; Jin et al. 2023a), image re-
+gions (Guo, Dai, and Hoiem 2012; Vicente, Hoai, and Sama-
+ras 2017; Jin et al. 2022), image gradients (Gryka, Terry,
+and Brostow 2015; Jin et al. 2023b). However, traditional
+shadow removal methods may produce unsatisfactory re-
+sults. Recently, supervised learning-based shadow removal
+methods (Chen et al. 2021; Fu et al. 2021; Liu et al. 2023a,b)
+1Our data and code is available at: https://github.com/jinyeying/
+DeS3 Deshadow.
+have shown promising performance. DeshadowNet (Qu
+et al. 2017) removes shadows in an end-to-end manner.
+DSC (Hu et al. 2019a) captures global and context infor-
+mation from the direction-aware spatial attention module.
+SP+M-Net (Le and Samaras 2019) and SP+M+I-Net (Le
+and Samaras 2021) remove shadow using image decompo-
+sition. CANet (Chen et al. 2021) is a two-stage context-
+aware network. BMNet (Zhu et al. 2022a) removes shad-
+ows using invertible neural networks. ST-CGAN (Wang,
+Li, and Yang 2018) jointly detects and removes shadows.
+ARGAN (Ding et al. 2019) uses LSTM attention to de-
+tect shadows. DHAN (Cun, Pun, and Shi 2020) employs
+the SMGAN to generate shadow matting. RIS-GAN (Zhang
+et al. 2020) explores the relationship of the residual im-
+ages. SG-ShadowNet (Wan et al. 2022) treats shadow re-
+moval as intra-image style transfer. These methods use Con-
+ditional GAN, StyleGAN (Karras, Laine, and Aila 2019) or
+Uformer (Guo et al. 2023a; Wang et al. 2022) as their ar-
+chitecture. However, supervised methods fail to handle self-
+shadows, as there are no ground truths (creating ones is in-
+tractable).
+The weakly-supervised shadow removal methods (Le and
+Samaras 2020; Liu et al. 2021a) require shadow masks to
+distinguish shadow and non-shadow patches or to produce
+pseudo shadow pairs, making them unsuitable for handling
+soft or self-shadows. Unsupervised shadow removal meth-
+ods (Hu et al. 2019b; Liu et al. 2021a; Jin, Sharma, and Tan
+2021) need non-shadow reference images, which are hard
+to obtain if the input has self-shadows. They rely on Cycle-
+GAN (Zhu et al. 2017; Jin, Yang, and Tan 2022) and learn
+from unpaired data.
+Denoising Diffusion Probabilistic Models (DDPM) (Ho,
+Jain, and Abbeel 2020) and Denoising Diffusion Implicit
+Models (DDIM) (Song, Meng, and Ermon 2021) have re-
+cently demonstrated promising generative ability (Li et al.
+2023). Palette (Saharia et al. 2022a), Unit-DDPM (Sasaki,
+Willcocks, and Breckon 2021), RDDM (Liu et al. 2023c)
+were proposed for image-to-image translation. WeatherDif-
+fusion ( ¨Ozdenizci and Legenstein 2023) is a diffusion
+method presented for weather removal. However, they are
+not designed to remove shadows and lack object struc-
+tures (Preechakul et al. 2022). Shadowdiffusion (Guo et al.
+2023b) uses shadow degradation as a prior and unrolling
+diffusion to remove shadows. However, the degradation
+model’s accuracy depends on the mask, and hence this
+method may not work well for soft and self-shadow removal.
+Proposed Method: DeS3
+Fig. 2 shows our pipeline, comprising a forward diffusion
+(dashed line) and reverse sampling (solid line). The main
+goal of DeS3 is to remove hard, soft and self shadows from a
+single image using an end-to-end network (without masks).
+Conditional DDIM
+We use Denoising Diffusion Implicit
+Models (DDIM) (Song, Meng, and Ermon 2021) as our gen-
+erative model. DDIM is trained on a clean image x0 ∼
+q(x0) via a forward diffusion process q(xt | xt−1) that se-
+quentially adds the Gaussian noise at every time steps t, i.e. ,
+q(xt | xt−1) = N(xt; √1 −βt xt−1, βt I), where {β}T
+t=0 is
+
+[CLS]
+
+Previous:
+rely on binary mask
+Our: 
+do not
+need
+mask
+
+from the
+dataset
+from the
+detector
+
+Figure 2: The architecture and the motivation of our DeS3. (1) The forward diffusion is shown in green. The reverse sampling
+starts from the noise map xT concatenated with the conditional shadow inputs ˜x. Our DeS3 samples image xt at each time step
+t. (2) We inject a classifier into the noise prediction network ϵθ(xt, ˜x, at, t). Adaptive attention at is progressively improved at
+each time step t. (3) To guide the reverse sampling to output the object structure features, we have the ViT similarity loss Lsim,
+extracted keys from the pre-trained DINO-ViT.
+Figure 3: Shadows can be categorized into hard, soft, and
+self shadows. Left: Soft and self shadows. Right: Wrong bi-
+nary masks, due to the ambiguous boundaries (the red boxes
+for the incorrect and blue boxes for mis-detected masks).
+Figure 4: Adaptive attention is refined during inference.
+a variance schedule. The forward diffusion of length T ex-
+pressed as:
+q(x1:T | x0) =
+T
+Y
+t=1
+q(xt | xt−1).
+(1)
+Diffusion learns to reverse the process in Eq.(1)
+with the Gaussian transitions, i.e. , pθ(xt−1 | xt)
+=
+N(xt−1; µθ(xt, t), Σθ(xt, t)), at each time step.
+The reverse denoising process is parameterized by a
+trainable network (e.g., U-Net), which estimates the mean
+Figure 5: The results of adaptive attention that enables our
+reverse sampling to focus on hard, soft and self shadows.
+a
+b
+c
+d
+e
+f
+Figure 6: d is DC (2021)’s result, and f is ours. We integrate
+adaptive attention with diffusion to tackle self-shadows.
+µθ(xt, t) and variance Σθ(xt, t) with parameter θ. This
+reverse process starts from a standard normal distribu-
+tion p(xT )
+=
+N(xT ; 0, I) and follows: pθ(x0:T )
+=
+p(xT ) QT
+t=1 pθ(xt−1 | xt). The noise prediction network
+ϵθ(xt, t) can be optimized by this objective function:
+Lθ(DM) = Ex0,ϵ,t
+h
+∥ϵ −ϵθ(xt, t)∥2i
+. After the optimiza-
+tion, we can sample from the learned parameterized Gaus-
+sian transitions pθ(xt−1 | xt) by: xt−1
+=
+µθ(xt, t) +
+Σ1/2
+θ
+(xt, t)ϵ,
+ϵ ∼N(0, I). Our DeS3 use conditional
+DDIM to output deterministic and consistent samples.
+We reverse process pθ(x0:T | ˜x), without changing the
+diffusion process q(x1:T | x0) in Eq.(1). We replace the
+
+noise prediction network ϵθ(xt, t) with ϵθ(xt, ˜x, t), where
+˜x denotes the shadow image. Here, we use the condi-
+tional DDIM (Song, Meng, and Ermon 2021) and input
+shadow images ˜x and shadow-free x0 pairs (˜x, x0) to out-
+put shadow-free image. We concatenate ˜x and xt channel-
+wisely, and input them to the deterministic reverse process.
+Therefore, we treat shadow removal as a reverse process
+with the loss function Lθ(CDM) and parameterize a noise
+prediction network ϵθ(xt, ˜x, t):
+Lθ(CDM) = Ex0,ϵ,t
+h
+∥ϵ −ϵθ(xt, ˜x, t)∥2i
+,
+(2)
+ˆx0(xt) =
+
+√¯αt
+ xt −
+√
+1 −¯αt · ϵθ(xt, ˜x, t)
+
+,
+where ˆx0(xt) refers to the estimated clean image from the
+sample xt. For brevity, we short ˆx0(xt) as x.
+The shadow removal starts from the noise map, xT ∼
+N(0, I), with the condition shadow input ˜x, and applies the
+diffusion towards the target non-shadow image x0. The sam-
+pling from the reverse process xt−1 ∼pθ(xt−1 | xt, ˜x) em-
+ploys: xt−1 = √¯αt−1
+
+xt −√1−¯αt·ϵθ(xt,˜x,t)
+√¯αt
+
++√1 −¯αt−1·
+ϵθ(xt, ˜x, t).
+Adaptive Classifier-driven Attention
+Our novelty lies in adaptive attention, which can highlight
+the regions of all three types of shadows, particularly self-
+shadows. Figs. 6e to 6f show our results using adaptive atten-
+tion, and additional results can be found in Fig. 5. Our adap-
+tive attention is progressively refined throughout the reverse
+process, as illustrated in Fig. 4. In contrast, (Jin, Sharma, and
+Tan 2021) relies solely on fixed CAMs, which tend to strug-
+gle with handling self-shadows, as demonstrated in Figs. 6c
+to 6d.
+Since a plain diffusion model is not aware of the shadow
+regions, we design an adaptive attention to allow the reverse
+sampling to focus on the shadow regions. Our soft atten-
+tion map differs from existing binary masks shown in Fig. 3,
+which are hard to obtain for self and soft shadows. We fuse
+the attention into diffusion by injecting the classifier in the
+U-Net. Specifically, by labeling the clear image x0 as 0, and
+the shadow condition ˜x as 1, and using binary classifica-
+tion with Class Activation Map (CAM) (Zhou et al. 2016).
+Given an image x ∈{˜x, x0}, Lcam = −(Ex∼˜x[log(C(x))]+
+Ex∼x0[log(1 −C(x))]), where C is the classifier. By lever-
+aging the information from the classifier, the CAM attention
+is learned from the data and can focus on hard, soft, and
+self-shadow regions, as shown in Fig. 5.
+Unlike the fixed attention in (Jin, Sharma, and Tan 2021),
+our attention is adaptive and progressively refines through-
+out the diffusion process. Besides the CAM attention, we
+employ a residual map refinement. By utilizing shadow and
+shadow-free pairs during training, we can employ a residual
+map to refine classifier-driven attention progressively. That
+is to say, the noise estimation network ϵθ(xt, ˜x, at, t) has
+two tasks: estimating the noise and progressively refining the
+attention at. We add one Sigmoid Conv layer after the last
+layer of the noise estimation network, and obtain the residual
+map mres by computing the difference map between shadow
+Figure 7: We visualize the deep DINO-ViT features. These
+object structure ViT features help DeS3 preserve the objec-
+t/scene structures (e.g., fire hydrant in self shadow example,
+duck, bag, bear in soft shadow examples).
+[CLS]
+
+Figure 8: In our reverse sampling process, we use the loss
+function to guide the output to follow the ViT similar-
+ity. When Lsim is high, continue the reverse sampling till
+25 steps. When Lsim is low, the reverse sampling can be
+stopped early.
+and shadow-free pair. This difference map is then used to
+guide the refinement of at via the following loss:
+Latt = Et∼[1,T ]
+h
+∥at −mres∥2i
+,
+(3)
+where mres = σ(x0 −˜x), σ(·) is the Sigmoid Conv layer.
+Object Structures in Reverse Sampling
+Unlike the VGG loss (Jin, Sharma, and Tan 2021) used in
+training, we propose to use a DINO-ViT loss as a stopping
+criterion in the reverse sampling (inference) stage. DINO-
+ViT demonstrates greater robustness in preserving object
+structures across all types of shadows when compared to
+VGG, as shown in Fig. 13. Moreover, in contrast to the
+losses in (Jin, Sharma, and Tan 2021), our DINO-ViT loss
+is exclusively employed during inference, serving as a stop-
+ping criterion, as depicted in Fig. 8. If the total loss Lt is
+smaller than that in the subsequent diffusion step, we halt
+the reverse process earlier.
+In contrast to the existing shadow removal methods that
+use the supervised losses (requiring ground truth shadow-
+
+Method
+Train
+RMSE ↓
+PSNR ↑
+SSIM ↑
+S
+NS
+ALL
+S
+NS
+ALL
+S
+NS
+ALL
+DHAN (2020)
+P+M
+8.94
+4.80
+5.67
+33.67
+34.79
+30.51
+0.978
+0.979
+0.949
+Auto (2021)
+P+M
+8.56
+5.75
+6.51
+32.26
+31.87
+28.40
+0.966
+0.945
+0.893
+EM (2022b)
+P+M
+10.00
+6.04
+7.20
+29.44
+26.67
+24.16
+0.937
+0.879
+0.779
+BM (2022a)
+P+M
+6.61
+3.61
+4.46
+35.05
+36.02
+31.69
+0.981
+0.982
+0.956
+SG (2022)
+P+M
+7.53
+3.08
+4.33
+33.88
+36.43
+31.38
+0.981
+0.987
+0.959
+DC (2021)
+UP
+7.70
+3.65
+4.66
+34.00
+35.53
+31.53
+0.975
+0.981
+0.955
+SR3 (2022b)
+P
+-
+-
+-
+35.44
+34.35
+31.29
+0.980
+0.970
+0.946
+W.Dif. (2023)
+P
+-
+-
+-
+33.38
+31.15
+28.45
+0.981
+0.972
+0.951
+DSC (2019a)
+P
+8.81
+4.41
+5.71
+30.65
+31.94
+27.76
+0.960
+0.965
+0.903
+Ours
+P
+5.88
+2.83
+3.72
+37.45
+38.12
+34.11
+0.984
+0.988
+0.968
+Table 1: Quantitative results on the SRD dataset. S, NS and ALL represent shadow, non-shadow and entire regions. M shows
+ground truth shadow masks are also used in training. “P” and “UP” stand for “Paired” and “Unpaired”.
+Figure 9: Self shadow removal results on UIUC dataset. (a) Input images. (b) Our results. (c)∼(g) Results of the state-of-the-art
+methods. Note that our method does not need additional masks in training and testing.
+free) in training, we use the self-tuned losses in the re-
+verse sampling (inference). Preserving object/scene struc-
+tures is critical for shadow removal (Qu et al. 2017). There-
+fore, we introduce the ViT similarity loss to guide the re-
+verse sampling. To preserve the object structures, our key
+idea is to exploit a self-similarity prior (Shechtman and
+Irani 2007). For the soft shadow example in Fig. 7, the left
+and right parts of the bag contain different lighting condi-
+tions and appearances, but they do share similar structures
+(i.e., self-similarity). A pre-trained DINO-ViT (Caron et al.
+2021) can provide better object structure features, compared
+to the CNN backbone, transformer-based backbones shown
+in (Karmali et al. 2022). Motivated by this, we use a pre-
+trained DINO-ViT as our feature extractor, enabling us to
+capture deep features (Amir et al. 2021), and providing use-
+ful feature supervision to our DeS3.
+DINO-ViT Keys
+We extract keys (deep features) from
+the pre-trained DINO-ViT. In the multi-head self-attention
+
+Figure 10: Hard shadow removal results on the USR (top),
+AISTD (second) and SRD (bottom four rows) datasets.
+layer, the keys contain the object structure information (Tu-
+manyan et al. 2022). In Fig. 7, we show the Principal
+Component Analysis (PCA) visualization of the keys’ self-
+similarity and demonstrate the top three components as RGB
+at the deepest layer of DINO-ViT. As one can observe, the
+feature representations capture the object structures, helping
+our DeS3 preserve and recover meaningful features.
+We propose the ViT similarity loss between the interme-
+diate keys of the input image and the estimated denoised
+output image during the reverse sampling given a noise esti-
+mation network ϵθ(xt, ˜x, at, t) and ViT model:
+Lsim(˜x, x) =
+Sl(˜x) −Sl(x)
+
+F ,
+(4)
+where S is the self-similarity descriptor, Sl(x) ∈R(n)×(n),
+with n × n dimension, where n is the number of patches. In
+DINO-ViT, the input image is split into n non-overlapping
+patches. l = 11 is the deepest ViT layer. ∥·∥F is the Frobe-
+nius norm. The self-similarity descriptor is defined as:
+Sl(x)ij = cos(kl
+i(x), kl
+j(x)) = 1 −
+kl
+i(x) · kl
+j(x)
+kl
+i(x)
+ ·
+kl
+j(x)
+,
+where cos(·) is the cosine similarity between spatial keys ki
+and kj.
+Experiments
+Implementation
+To ensure fair comparisons, all the base-
+lines, including ours are trained and tested on the same
+datasets. We trained our DeS3 on each dataset and tested
+on the corresponding dataset, e.g., for SRD (Qu et al. 2017),
+we used 2680 SRD and 408 SRD images for training and
+testing, respectively. We use 1000 steps for training and 25
+steps for inference, noise schedule βt linear from 0.0001
+to 0.02. α and β are empirically set to 0.5 in training.
+Figure 11: Shadow removal results on the soft shadow
+dataset LRSS (top three) and SRD (bottom three rows)
+datasets. Note that our method does not need additional
+masks in training and testing.
+Lt(˜x, x) = λsimLsim, which is the total reverse sampling
+loss, where λsim = 2, we balance the self-tuned ViT loss to
+select the good sampling output.
+Shadow Removal on Hard Shadows
+The SRD dataset
+consists of 2680 training and 408 testing pairs of shadow and
+shadow-free images without shadow masks. It contains hard
+shadows and soft shadows. For the baseline methods that
+require shadow masks, we additionally use the processing
+results of DHAN (Cun, Pun, and Shi 2020) for SRD shadow
+masks.
+Fig. 10 (bottom four rows) and Table 1 show the hard
+shadow removal results on the SRD dataset. Fig. 11 (bot-
+tom three rows) show the soft shadow removal results on the
+SRD dataset, which show our DeS3 outperforms the SOTA
+methods. The best values for each metric are highlighted in
+bold. Moreover, DeS3 achieves the highest PSNR and SSIM
+values in shadow, non-shadow and overall areas. PSNR and
+SSIM are widely used in image generation tasks (2023c;
+2023b; 2023a). Fig. 10 (second row) show results on the
+AISTD dataset, which demonstrate the superiority of our
+DeS3 compared to baseline results. The USR dataset (Hu
+et al. 2019b) is an unpaired dataset, including hard, soft, and
+self shadows. We evaluate on USR test shadow images and
+show results in Fig. 10 (first row).
+Shadow Removal on Soft and Self Shadows
+The
+LRSS (Gryka, Terry, and Brostow 2015) is a soft shadow
+dataset with 134 shadow images2; we followed (Jin, Sharma,
+and Tan 2021; Gryka, Terry, and Brostow 2015), using the
+2LRSS Dataset are obtained from their project website:
+http://visual.cs.ucl.ac.uk/pubs/softshadows/
+
+Aspects
+Ours
+S.Diff.
+SG
+G2R
+SP+M+I
+DC
+SP+M
+1.DeS↑
+8.6±1.3
+5.8±3.9
+6.2±2.7
+5.6±3.8
+6.0±4.0
+5.4±1.8
+5.6±2.3
+2.Real↑
+9.0±0.9
+6.9±2.8
+6.9±2.0
+7.2±3.2
+7.0±1.5
+6.0±0.5
+6.6±1.8
+Table 2: User study on the self shadow removal of the UIUC dataset (Guo, Dai, and Hoiem 2011), our method obtained the
+highest mean (the max score is 10), showing our method is effective in shadow removal (DeS) and visually realistic (Real). The
+best results are in bold, the second best are in underline.
+Method
+Guo
+Gryka
+DHAN
+SP+M
+MS.GAN
+DC
+Guo (at)
+S.Diff.
+Ours
+RMSE↓
+6.02
+4.38
+7.92
+7.48
+7.13
+3.48
+5.87
+3.49
+3.01
+PSNR↑
+27.88
+29.25
+25.57
+23.93
+25.12
+31.01
+28.02
+28.86
+33.95
+Train
+P+M
+P+M+S
+P+M+S
+P+M
+UP
+UP
+P
+P+M
+P
+Table 3: Results on the LRSS (soft shadow) dataset. M and S represent ground truth shadow masks and synthetic data are used
+in training. “P” and “UP” stand for “Paired” and “Unpaired”. Our DeS3 does not need shadow masks.
+Figure 12: Ablation studies on the ViT similarity loss.
+Figure 13: Ablation study on ViT vs VGG, the output of ViT
+is better than VGG.
+same 34 LRSS images with their corresponding shadow-free
+images for evaluation shown in Table 3. Our DeS3 achieves
+the highest PSNR and lowest RMSE.
+Fig. 11 (top three rows) show results on the LRSS dataset.
+Besides the SOTA baselines, we compared our method with
+the traditional hard and soft shadow removal method (Guo,
+Dai, and Hoiem 2012). Since the majority of the SOTA
+baselines need the shadow mask for evaluation, we use the
+shadow mask provided by LRSS dataset (Gryka, Terry, and
+Brostow 2015). However, the provided binary shadow mask
+does not consider the ambiguous boundaries of soft and self
+shadows, thus leading to remaining shadows in the ambigu-
+ous boundaries.
+UCF (Zhu et al. 2010) and UIUC dataset (Guo, Dai,
+and Hoiem 2011), contain 245 and 108 images. UIUC pro-
+vides 30 images where shadows are caused by objects in the
+scene, which are used for self shadow evaluation, the results
+are shown in Fig. 9. For the baseline methods that require
+shadow masks, we additionally use the detection results of
+BDRAR (Zhu et al. 2018).
+Method
+S ↓
+NS ↓
+Overall↓
+w/o Adaptive Classifier Atten
+6.35
+3.02
+4.46
+w/o Lsim
+6.21
+2.99
+3.94
+Ours (complete model)
+5.88
+2.83
+3.72
+Table 4: Ablation experiments of our method using the SRD
+dataset. The numbers represent RMSE, lower is better.
+Ablation Studies
+Fig. 12 and Table. 4 show the effective-
+ness of the ViT similarity loss used in DeS3. From Fig. 12
+(second row), the ViT similarity loss help in maintaining
+the structures of the mountain, owing to the features (the
+self-similarity keys) of the pre-trained DINO-ViT. We com-
+pare our method with two diffusion baselines: WeatherDif-
+fusion ( ¨Ozdenizci and Legenstein 2023) and SR3 (Saharia
+et al. 2022b) shown in Tab.1. More results are in the supple-
+mentary material.
+Conclusion
+We have proposed DeS3, the first shadow removal network
+that performs shadow removal robustly on hard, soft and self
+shadows. Unlike existing methods, our DeS3 does not rely
+on masks during training and testing. To guide our reverse
+sampling process to preserve object/scene structure informa-
+tion, we propose the self-tuned ViT similarity loss. Unlike
+existing methods, our DeS3 performs shadow removal ro-
+bustly on outdoor self shadows, which is intractable to have
+ground truths.
+Acknowledgments
+This research is supported by the National Research Foun-
+dation, Singapore under its AI Singapore Programme (AISG
+Award No: AISG2-PhD/2022-01-037[T]). Wenhan Yang’s
+research is supported in part by the Basic and Frontier Re-
+search Project of PCL, and the Major Key Project of PCL.
+
+References
+Amir, S.; Gandelsman, Y.; Bagon, S.; and Dekel, T. 2021.
+Deep vit features as dense visual descriptors. arXiv preprint
+arXiv:2112.05814.
+Caron, M.; Touvron, H.; Misra, I.; J´egou, H.; Mairal, J.; Bo-
+janowski, P.; and Joulin, A. 2021. Emerging properties in
+self-supervised vision transformers. In Proceedings of the
+IEEE/CVF International Conference on Computer Vision,
+9650–9660.
+Chen, Z.; Long, C.; Zhang, L.; and Xiao, C. 2021. CANet: A
+Context-Aware Network for Shadow Removal. In Proceed-
+ings of the IEEE/CVF International Conference on Com-
+puter Vision, 4743–4752.
+Cun, X.; Pun, C.-M.; and Shi, C. 2020. Towards ghost-free
+shadow removal via dual hierarchical aggregation network
+and shadow matting gan. In Proceedings of the AAAI Con-
+ference on Artificial Intelligence, volume 34, 10680–10687.
+Ding, B.; Long, C.; Zhang, L.; and Xiao, C. 2019.
+Ar-
+gan: Attentive recurrent generative adversarial network for
+shadow detection and removal.
+In Proceedings of the
+IEEE/CVF international conference on computer vision,
+10213–10222.
+Finlayson, G. D.; Hordley, S. D.; Lu, C.; and Drew, M. S.
+2005. On the removal of shadows from images. IEEE trans-
+actions on pattern analysis and machine intelligence, 28(1):
+59–68.
+Fu, L.; Zhou, C.; Guo, Q.; Juefei-Xu, F.; Yu, H.; Feng, W.;
+Liu, Y.; and Wang, S. 2021. Auto-exposure fusion for single-
+image shadow removal. In Proceedings of the IEEE/CVF
+Conference on Computer Vision and Pattern Recognition,
+10571–10580.
+Gryka, M.; Terry, M.; and Brostow, G. J. 2015. Learning
+to remove soft shadows. ACM Transactions on Graphics
+(TOG), 34(5): 1–15.
+Guo, L.; Huang, S.; Liu, D.; Cheng, H.; and Wen, B. 2023a.
+ShadowFormer: Global Context Helps Image Shadow Re-
+moval. arXiv preprint arXiv:2302.01650.
+Guo, L.; Wang, C.; Yang, W.; Huang, S.; Wang, Y.; Pfister,
+H.; and Wen, B. 2023b. Shadowdiffusion: When degrada-
+tion prior meets diffusion model for shadow removal. In
+Proceedings of the IEEE/CVF Conference on Computer Vi-
+sion and Pattern Recognition, 14049–14058.
+Guo, R.; Dai, Q.; and Hoiem, D. 2011. Single-image shadow
+detection and removal using paired regions. In Proceedings
+of the IEEE Conference on Computer Vision and Pattern
+Recognition, 2033–2040.
+Guo, R.; Dai, Q.; and Hoiem, D. 2012. Paired regions for
+shadow detection and removal. IEEE transactions on pat-
+tern analysis and machine intelligence, 35(12): 2956–2967.
+Ho, J.; Jain, A.; and Abbeel, P. 2020. Denoising diffusion
+probabilistic models. Advances in Neural Information Pro-
+cessing Systems, 33: 6840–6851.
+Hu, X.; Fu, C.-W.; Zhu, L.; Qin, J.; and Heng, P.-A. 2019a.
+Direction-Aware Spatial Context Features for Shadow De-
+tection and Removal. IEEE Transactions on Pattern Analy-
+sis and Machine Intelligence, 42(11): 2795–2808.
+Hu, X.; Jiang, Y.; Fu, C.-W.; and Heng, P.-A. 2019b. Mask-
+ShadowGAN: Learning to remove shadows from unpaired
+data. In Proceedings of the IEEE International Conference
+on Computer Vision, 2472–2481.
+Huang, J.-B.; and Chen, C.-S. 2009. Moving cast shadow
+detection using physics-based features. In 2009 IEEE Con-
+ference on Computer Vision and Pattern Recognition, 2310–
+2317. IEEE.
+Jin, Y.; Li, R.; Yang, W.; and Tan, R. T. 2023a. Estimating
+reflectance layer from a single image: Integrating reflectance
+guidance and shadow/specular aware learning. In Proceed-
+ings of the AAAI Conference on Artificial Intelligence, vol-
+ume 37, 1069–1077.
+Jin, Y.; Lin, B.; Yan, W.; Yuan, Y.; Ye, W.; and Tan, R. T.
+2023b. Enhancing visibility in nighttime haze images using
+guided apsf and gradient adaptive convolution. In Proceed-
+ings of the 31st ACM International Conference on Multime-
+dia, 2446–2457.
+Jin, Y.; Sharma, A.; and Tan, R. T. 2021. DC-ShadowNet:
+Single-Image Hard and Soft Shadow Removal Using Unsu-
+pervised Domain-Classifier Guided Network. In Proceed-
+ings of the IEEE/CVF International Conference on Com-
+puter Vision, 5027–5036.
+Jin, Y.; Yan, W.; Yang, W.; and Tan, R. T. 2022. Structure
+Representation Network and Uncertainty Feedback Learn-
+ing for Dense Non-Uniform Fog Removal. In Proceedings
+of the Asian Conference on Computer Vision, 2041–2058.
+Jin, Y.; Yang, W.; and Tan, R. T. 2022. Unsupervised night
+image enhancement: When layer decomposition meets light-
+effects suppression. In European Conference on Computer
+Vision, 404–421. Springer.
+Karmali, T.; Parihar, R.; Agrawal, S.; Rangwani, H.; Jam-
+pani, V.; Singh, M.; and Babu, R. V. 2022.
+Hierarchical
+Semantic Regularization of Latent Spaces in StyleGANs.
+In European Conference on Computer Vision, 443–459.
+Springer.
+Karras, T.; Laine, S.; and Aila, T. 2019. A style-based gen-
+erator architecture for generative adversarial networks. In
+Proceedings of the IEEE/CVF conference on computer vi-
+sion and pattern recognition, 4401–4410.
+Le, H.; and Samaras, D. 2019. Shadow removal via shadow
+image decomposition. In Proceedings of the IEEE/CVF In-
+ternational Conference on Computer Vision, 8578–8587.
+Le, H.; and Samaras, D. 2020. From shadow segmentation
+to shadow removal. In European Conference on Computer
+Vision, 264–281. Springer.
+Le, H.; and Samaras, D. 2021. Physics-based shadow image
+decomposition for shadow removal. IEEE Transactions on
+Pattern Analysis & Machine Intelligence, (01): 1–1.
+Li, X.; Ren, Y.; Jin, X.; Lan, C.; Wang, X.; Zeng, W.; Wang,
+X.; and Chen, Z. 2023. Diffusion Models for Image Restora-
+tion and Enhancement–A Comprehensive Survey.
+arXiv
+preprint arXiv:2308.09388.
+Liu, J.; Wang, Q.; Fan, H.; Li, W.; Qu, L.; and Tang, Y.
+2023a. A Decoupled Multi-Task Network for Shadow Re-
+moval. IEEE Transactions on Multimedia.
+
+Liu, J.; Wang, Q.; Fan, H.; Tian, J.; and Tang, Y. 2023b. A
+Shadow Imaging Bilinear Model and Three-Branch Resid-
+ual Network for Shadow Removal. IEEE Transactions on
+Neural Networks and Learning Systems.
+Liu, J.; Wang, Q.; Fan, H.; Wang, Y.; Tang, Y.; and Qu, L.
+2023c. Residual denoising diffusion models. arXiv preprint
+arXiv:2308.13712.
+Liu, Z.; Yin, H.; Mi, Y.; Pu, M.; and Wang, S. 2021a.
+Shadow removal by a lightness-guided network with train-
+ing on unpaired data. IEEE Transactions on Image Process-
+ing, 30: 1853–1865.
+Liu, Z.; Yin, H.; Wu, X.; Wu, Z.; Mi, Y.; and Wang, S.
+2021b. From Shadow Generation to Shadow Removal. In
+CVPR.
+¨Ozdenizci, O.; and Legenstein, R. 2023. Restoring vision
+in adverse weather conditions with patch-based denoising
+diffusion models. IEEE Transactions on Pattern Analysis
+and Machine Intelligence.
+Preechakul, K.; Chatthee, N.; Wizadwongsa, S.; and Suwa-
+janakorn, S. 2022. Diffusion autoencoders: Toward a mean-
+ingful and decodable representation.
+In Proceedings of
+the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition, 10619–10629.
+Qu, L.; Tian, J.; He, S.; Tang, Y.; and Lau, R. W. 2017.
+Deshadownet: A multi-context embedding deep network for
+shadow removal. In Proceedings of the IEEE Conference on
+Computer Vision and Pattern Recognition, 4067–4075.
+Saharia, C.; Chan, W.; Chang, H.; Lee, C.; Ho, J.; Salimans,
+T.; Fleet, D.; and Norouzi, M. 2022a.
+Palette: Image-to-
+image diffusion models. In ACM SIGGRAPH 2022 Con-
+ference Proceedings, 1–10.
+Saharia, C.; Ho, J.; Chan, W.; Salimans, T.; Fleet, D. J.; and
+Norouzi, M. 2022b. Image super-resolution via iterative re-
+finement. IEEE Transactions on Pattern Analysis and Ma-
+chine Intelligence.
+Salvador, E.; Cavallaro, A.; and Ebrahimi, T. 2004. Cast
+shadow segmentation using invariant color features. Com-
+puter vision and image understanding, 95(2): 238–259.
+Sasaki, H.; Willcocks, C. G.; and Breckon, T. P. 2021. Unit-
+ddpm: Unpaired image translation with denoising diffusion
+probabilistic models. arXiv preprint arXiv:2104.05358.
+Shechtman, E.; and Irani, M. 2007.
+Matching local self-
+similarities across images and videos. In 2007 IEEE Con-
+ference on Computer Vision and Pattern Recognition, 1–8.
+IEEE.
+Song, J.; Meng, C.; and Ermon, S. 2021. Denoising diffusion
+implicit models. In International Conference on Learning
+Representations.
+Tumanyan, N.; Bar-Tal, O.; Bagon, S.; and Dekel, T. 2022.
+Splicing ViT Features for Semantic Appearance Transfer. In
+Proceedings of the IEEE/CVF Conference on Computer Vi-
+sion and Pattern Recognition, 10748–10757.
+Vicente, T. F. Y.; Hoai, M.; and Samaras, D. 2017. Leave-
+one-out kernel optimization for shadow detection and re-
+moval. IEEE Transactions on Pattern Analysis and Machine
+Intelligence, 40(3): 682–695.
+Wan, J.; Yin, H.; Wu, Z.; Wu, X.; Liu, Y.; and Wang, S. 2022.
+Style-Guided Shadow Removal. In European Conference on
+Computer Vision, 361–378. Springer.
+Wang, C.; Pan, J.; Lin, W.; Dong, J.; and Wu, X.-M.
+2023a.
+SelfPromer: Self-Prompt Dehazing Transformers
+with Depth-Consistency. arXiv preprint arXiv:2303.07033.
+Wang, C.; Pan, J.; Wang, W.; Dong, J.; Wang, M.; Ju, Y.;
+and Chen, J. 2023b. PromptRestorer: A Prompting Image
+Restoration Method with Degradation Perception. In Thirty-
+seventh Conference on Neural Information Processing Sys-
+tems.
+Wang, J.; Li, X.; and Yang, J. 2018. Stacked conditional
+generative adversarial networks for jointly learning shadow
+detection and shadow removal. In Proceedings of the IEEE
+Conference on Computer Vision and Pattern Recognition,
+1788–1797.
+Wang, J.; Qian, X.; Zhang, M.; Tan, R. T.; and Li, H. 2023c.
+Seeing What You Said: Talking Face Generation Guided by
+a Lip Reading Expert.
+In Proceedings of the IEEE/CVF
+Conference on Computer Vision and Pattern Recognition,
+14653–14662.
+Wang, Z.; Cun, X.; Bao, J.; Zhou, W.; Liu, J.; and Li, H.
+2022. Uformer: A general u-shaped transformer for image
+restoration. In Proceedings of the IEEE/CVF Conference on
+Computer Vision and Pattern Recognition, 17683–17693.
+Zhang, L.; Long, C.; Zhang, X.; and Xiao, C. 2020. Ris-
+gan: Explore residual and illumination with generative ad-
+versarial networks for shadow removal. In Proceedings of
+the AAAI Conference on Artificial Intelligence, volume 34,
+12829–12836.
+Zhou, B.; Khosla, A.; Lapedriza, A.; Oliva, A.; and Torralba,
+A. 2016. Learning Deep Features for Discriminative Local-
+ization. In Proceedings of the IEEE Conference on Com-
+puter Vision and Pattern Recognition (CVPR).
+Zhu, J.; Samuel, K. G.; Masood, S. Z.; and Tappen, M. F.
+2010. Learning to recognize shadows in monochromatic nat-
+ural images. In 2010 IEEE Computer Society conference on
+computer vision and pattern recognition, 223–230. IEEE.
+Zhu, J.-Y.; Park, T.; Isola, P.; and Efros, A. A. 2017. Un-
+paired image-to-image translation using cycle-consistent ad-
+versarial networks. In Proceedings of the IEEE International
+Conference on Computer Vision, 2223–2232.
+Zhu, L.; Deng, Z.; Hu, X.; Fu, C.-W.; Xu, X.; Qin, J.; and
+Heng, P.-A. 2018. Bidirectional feature pyramid network
+with recurrent attention residual modules for shadow detec-
+tion. In Proceedings of the European Conference on Com-
+puter Vision (ECCV), 121–136.
+Zhu, Y.; Huang, J.; Fu, X.; Zhao, F.; Sun, Q.; and Zha, Z.-J.
+2022a. Bijective Mapping Network for Shadow Removal.
+In Proceedings of the IEEE/CVF Conference on Computer
+Vision and Pattern Recognition, 5627–5636.
+Zhu, Y.; Xiao, Z.; Fang, Y.; Fu, X.; Xiong, Z.; and Zha, Z.-J.
+2022b.
+Efficient Model-Driven Network for Shadow Re-
+moval. In Proceedings of the AAAI Conference on Artificial
+Intelligence, volume 36, 3635–3643.

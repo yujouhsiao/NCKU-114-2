@@ -1,0 +1,1008 @@
+[
+  {
+    "id": "q01",
+    "type": "definition",
+    "question": "What is neural network pruning?",
+    "gold_answer": "Neural network pruning refers to the process of removing unnecessary or redundant neurons and connections in a neural network to reduce its size and computational requirements while maintaining or even improving its performance.",
+    "gold_paper_ids": [
+      "blalock2020_what_is_the_state"
+    ],
+    "_source_chunk": "blalock2020_what_is_the_state__28__5"
+  },
+  {
+    "id": "q02",
+    "type": "comparison",
+    "question": "How does unstructured pruning differ from structured pruning in terms of parameter sparsity?",
+    "gold_answer": "Unstructured pruning prunes individual parameters to produce a sparse neural network, while structured pruning targets entire groups of parameters (e.g., filters or channels) to remove, leading to a more organized sparsity pattern.",
+    "gold_paper_ids": [
+      "blalock2020_what_is_the_state"
+    ],
+    "_source_chunk": "blalock2020_what_is_the_state__6__0"
+  },
+  {
+    "id": "q03",
+    "type": "method",
+    "question": "How does coreset-based neural network compression work to reduce the computational complexity of deep convolutional neural networks?",
+    "gold_answer": "Coreset-based neural network compression works by selecting a small subset of the training data, known as a coreset, that can approximate the full dataset well enough for the model to be trained or compressed without significant loss of accuracy. This technique reduces the number of parameters needed to represent the model, thereby decreasing computational complexity and memory requirements.",
+    "gold_paper_ids": [
+      "dubey2018_coresetbased_neural_network_compression"
+    ],
+    "_source_chunk": "dubey2018_coresetbased_neural_network_compression__1__0"
+  },
+  {
+    "id": "q04",
+    "type": "trend",
+    "question": "What is a potential future direction for improving the efficiency of coreset-based neural network compression methods?",
+    "gold_answer": "One potential future direction could be to optimize the fraction of random training points (s) used in coreset construction to further reduce computational complexity while maintaining or improving compression efficiency.",
+    "gold_paper_ids": [
+      "dubey2018_coresetbased_neural_network_compression"
+    ],
+    "_source_chunk": "dubey2018_coresetbased_neural_network_compression__9__1"
+  },
+  {
+    "id": "q05",
+    "type": "definition",
+    "question": "What is RigL?",
+    "gold_answer": "RigL is a method for training sparse neural networks that involves periodically updating a mask to prune connections during training.",
+    "gold_paper_ids": [
+      "evci2019_rigging_the_lottery_making"
+    ],
+    "_source_chunk": "evci2019_rigging_the_lottery_making__9__0"
+  },
+  {
+    "id": "q07",
+    "type": "method",
+    "question": "How does the initial training of a neural network contribute to the effectiveness of pruning and fine-tuning in the context of the Lottery Ticket Hypothesis?",
+    "gold_answer": "The initial training of a neural network initializes the weights of the pruned network so that it can learn effectively during the subsequent fine-tuning phase, allowing for the removal of connections while still maintaining the ability to learn the function originally represented by the full network.",
+    "gold_paper_ids": [
+      "frankle2018_the_lottery_ticket_hypothesis"
+    ],
+    "_source_chunk": "frankle2018_the_lottery_ticket_hypothesis__7__0"
+  },
+  {
+    "id": "q08",
+    "type": "trend",
+    "question": "How might the use of dropout and iterative pruning affect the performance and training speed of neural networks according to the findings presented in the passage?",
+    "gold_answer": "According to the findings presented in the passage, using dropout increases initial test accuracy by an average of 2.1 to 3.0 percentage points for different network architectures. Iterative pruning further enhances this accuracy by up to an additional 2.3 to 4.7 percentage points. Additionally, while learning becomes faster with iterative pruning, the increase in speed is less dramatic for smaller network architectures like Conv-2.",
+    "gold_paper_ids": [
+      "frankle2018_the_lottery_ticket_hypothesis"
+    ],
+    "_source_chunk": "frankle2018_the_lottery_ticket_hypothesis__5__2"
+  },
+  {
+    "id": "q09",
+    "type": "definition",
+    "question": "Define l 0 -norm.",
+    "gold_answer": "l 0 -norm refers to the count of non-zero elements in a weight vector, often used in regularization to promote sparsity in deep neural networks.",
+    "gold_paper_ids": [
+      "gale2019_the_state_of_sparsity"
+    ],
+    "_source_chunk": "gale2019_the_state_of_sparsity__30__0"
+  },
+  {
+    "id": "q10",
+    "type": "comparison",
+    "question": "How did the sensitivity of ResNet-50 with variational dropout to log σ 2 parameter initialization compare to that of the transformer model?",
+    "gold_answer": "ResNet-50 with variational dropout was found to be highly sensitive to the initialization for the log σ 2 parameters, requiring specific settings like -15 to achieve good results, while the transformer model showed a reasonable amount of variance in test set performance without such sensitivity.",
+    "gold_paper_ids": [
+      "gale2019_the_state_of_sparsity"
+    ],
+    "_source_chunk": "gale2019_the_state_of_sparsity__34__0"
+  },
+  {
+    "id": "q11",
+    "type": "method",
+    "question": "How does the sensitivity of pruning affect the threshold applied to each layer during the pruning process?",
+    "gold_answer": "The sensitivity of pruning affects the threshold applied to each layer such that the smallest threshold is applied to the most sensitive layer. For example, the first convolutional layer, which is the most sensitive, receives the smallest threshold.",
+    "gold_paper_ids": [
+      "han2015_learning_both_weights_and"
+    ],
+    "_source_chunk": "han2015_learning_both_weights_and__14__1"
+  },
+  {
+    "id": "q12",
+    "type": "method",
+    "question": "What three-step pipeline does Han et al. (2015) propose for learning both weights and connections?",
+    "gold_answer": "Han et al. (2015) propose a three-step pipeline: (1) Train the network normally to learn which connections are important; (2) Prune all connections whose weights fall below a threshold, removing low-saliency connections; (3) Retrain the pruned network to fine-tune the remaining weights. This iterative train-prune-retrain cycle removes 9× parameters from AlexNet and 13× from VGG-16 with no accuracy loss.",
+    "gold_paper_ids": [
+      "han2015_learning_both_weights_and"
+    ],
+    "_source_chunk": "han2015_learning_both_weights_and__2__0"
+  },
+  {
+    "id": "q13",
+    "type": "definition",
+    "question": "What is Deep Compression?",
+    "gold_answer": "Deep Compression is a method for compressing deep neural networks without affecting their accuracy, achieved through pruning unimportant connections, quantizing the network using weight sharing, and applying Huffman coding.",
+    "gold_paper_ids": [
+      "han2015_deep_compression_compressing_deep"
+    ],
+    "_source_chunk": "han2015_deep_compression_compressing_deep__21__0"
+  },
+  {
+    "id": "q14",
+    "type": "comparison",
+    "question": "How does deep compression using pruning compare to trained quantization in terms of compressing deep neural networks?",
+    "gold_answer": "Pruning involves removing unnecessary neurons from the network to reduce its size, while trained quantization reduces the precision of the weights to fewer bits. Both methods aim to compress deep neural networks, but they differ in their approach: pruning focuses on eliminating redundant components, whereas trained quantization focuses on reducing the storage requirements for the model's parameters.",
+    "gold_paper_ids": [
+      "han2015_deep_compression_compressing_deep"
+    ],
+    "_source_chunk": "han2015_deep_compression_compressing_deep__2__0"
+  },
+  {
+    "id": "q15",
+    "type": "method",
+    "question": "How does the Second Order Derivatives technique work in the context of network pruning as described in the Optimal Brain Surgeon paper?",
+    "gold_answer": "In the context of network pruning, the Second Order Derivatives technique works by using the Hessian matrix to approximate the importance of each neuron in the neural network. By analyzing the eigenvalues of the Hessian, the method can identify which neurons can be pruned without significantly affecting the network's performance, thus optimizing the network's structure.",
+    "gold_paper_ids": [
+      "hassibi1992_second_order_derivatives_for"
+    ],
+    "_source_chunk": "hassibi1992_second_order_derivatives_for__0__0"
+  },
+  {
+    "id": "q16",
+    "type": "trend",
+    "question": "What is a potential limitation of magnitude-based methods in network pruning, and how does Optimal Brain Damage address this issue?",
+    "gold_answer": "A potential limitation of magnitude-based methods is that they may eliminate important weights that are small but necessary for achieving low error. Optimal Brain Damage addresses this issue by using the criterion of minimal increase in training error to guide the pruning process, ensuring that only weights that do not significantly impact performance are removed.",
+    "gold_paper_ids": [
+      "lecun1989_optimal_brain_damage",
+      "hassibi1992_second_order_derivatives_for"
+    ],
+    "_source_chunk": "hassibi1992_second_order_derivatives_for__2__0"
+  },
+  {
+    "id": "q17",
+    "type": "method",
+    "question": "What optimization objective does He et al. (2017) use to select which channels to prune in a convolutional layer?",
+    "gold_answer": "He et al. (2017) minimize the feature map reconstruction error of the subsequent layer after channel removal. They formulate channel selection as a LASSO regression problem: given the output feature maps of a layer, they find the minimum subset of input channels whose linear combination best reconstructs those outputs. This makes pruning a convex optimization problem solvable efficiently per layer, avoiding expensive global search.",
+    "gold_paper_ids": [
+      "he2017_channel_pruning_for_accelerating"
+    ],
+    "_source_chunk": "he2017_channel_pruning_for_accelerating__8__1"
+  },
+  {
+    "id": "q18",
+    "type": "comparison",
+    "question": "How does channel pruning with fine-tuning compare to not using fine-tuning in terms of top-5 accuracy on ImageNet?",
+    "gold_answer": "Using channel pruning with fine-tuning can gain more performance in terms of top-5 accuracy on ImageNet compared to not using fine-tuning.",
+    "gold_paper_ids": [
+      "he2017_channel_pruning_for_accelerating"
+    ],
+    "_source_chunk": "he2017_channel_pruning_for_accelerating__9__0"
+  },
+  {
+    "id": "q19",
+    "type": "method",
+    "question": "How does AMC use reinforcement learning to automate model compression policy search?",
+    "gold_answer": "AMC (AutoML for Model Compression) frames layer-wise compression ratio selection as a continuous action space problem and trains a DDPG agent to explore the policy space. Given a layer's features (e.g., kernel size, channel count, FLOPs), the agent outputs a compression ratio; the environment reward is the accuracy-efficiency trade-off on a validation set. This removes the need for hand-crafted heuristics and achieves better accuracy-efficiency trade-offs than human-designed policies.",
+    "gold_paper_ids": [
+      "he2018_amc_automl_for_model"
+    ],
+    "_source_chunk": "he2018_amc_automl_for_model__9__2"
+  },
+  {
+    "id": "q20",
+    "type": "trend",
+    "question": "What is a potential future direction for AMC based on its performance in model compression and acceleration?",
+    "gold_answer": "A potential future direction for AMC is to further explore and optimize its reinforcement learning approach to find more effective compression policies, especially for depth-wise convolutions where it currently shows less significant speed-up. Additionally, researchers could investigate how AMC's performance can be enhanced on different types of hardware, including GPUs with even higher degrees of parallelism, to achieve greater speedups.",
+    "gold_paper_ids": [
+      "he2018_amc_automl_for_model"
+    ],
+    "_source_chunk": "he2018_amc_automl_for_model__9__5"
+  },
+  {
+    "id": "q21",
+    "type": "definition",
+    "question": "What is filter pruning?",
+    "gold_answer": "Filter pruning is a technique used to reduce the computational complexity and improve the efficiency of deep convolutional neural networks by removing unnecessary filters.",
+    "gold_paper_ids": [
+      "he2018_filter_pruning_via_geometric"
+    ],
+    "_source_chunk": "he2018_filter_pruning_via_geometric__0__0"
+  },
+  {
+    "id": "q22",
+    "type": "comparison",
+    "question": "How does the FPGM method compare to previous acceleration algorithms in terms of achieving state-of-the-art results?",
+    "gold_answer": "The FPGM method achieves the state-of-the-art result when compared to previous acceleration algorithms such as MIL [5], PFEC [21], CP [16], ThiNet [25], SFP [15], NISP [39], and Rethinking [38].",
+    "gold_paper_ids": [
+      "he2018_filter_pruning_via_geometric"
+    ],
+    "_source_chunk": "he2018_filter_pruning_via_geometric__12__1"
+  },
+  {
+    "id": "q23",
+    "type": "method",
+    "question": "How does the zero activation-based neuron pruning technique work in the context of network trimming for the VGG-16 architecture?",
+    "gold_answer": "The zero activation-based neuron pruning technique identifies and removes neurons that do not contribute significantly to the network's performance by detecting those with zero activations during training. This process helps in reducing the computational complexity and improving efficiency without compromising much on accuracy.",
+    "gold_paper_ids": [
+      "hu2016_network_trimming_a_datadriven"
+    ],
+    "_source_chunk": "hu2016_network_trimming_a_datadriven__4__0"
+  },
+  {
+    "id": "q24",
+    "type": "method",
+    "question": "What criterion does Network Trimming (Hu et al., 2016) use to identify redundant neurons for pruning?",
+    "gold_answer": "Network Trimming uses Average Percentage of Zero activations (APoZ) as its criterion. APoZ for a neuron is the fraction of times its post-ReLU output equals zero across the evaluation dataset. Neurons with high APoZ are rarely activated and thus contribute little to discriminative representations. The method prunes neurons with APoZ above a threshold and retrains the remaining network, enabling data-driven removal without relying on weight magnitude.",
+    "gold_paper_ids": [
+      "hu2016_network_trimming_a_datadriven"
+    ],
+    "_source_chunk": "hu2016_network_trimming_a_datadriven__15__0"
+  },
+  {
+    "id": "q25",
+    "type": "definition",
+    "question": "Define Optimal Brain Damage.",
+    "gold_answer": "Optimal Brain Damage is a technique used to reduce the number of parameters in a neural network by automatically deleting unnecessary parameters, thereby improving the network's speed and recognition accuracy.",
+    "gold_paper_ids": [
+      "lecun1989_optimal_brain_damage"
+    ],
+    "_source_chunk": "lecun1989_optimal_brain_damage__7__0"
+  },
+  {
+    "id": "q27",
+    "type": "method",
+    "question": "How does SNIP adjust the strides in the first convolution layer for Tiny-ImageNet to handle increased image resolution?",
+    "gold_answer": "For Tiny-ImageNet, SNIP sets the strides in the first convolution layer to [4, 4] for AlexNet and [2, 2] for VGG-C/D-like models, instead of the default [2, 2] and [1, 1], respectively, to manage the higher image resolution.",
+    "gold_paper_ids": [
+      "lee2018_snip_singleshot_network_pruning"
+    ],
+    "_source_chunk": "lee2018_snip_singleshot_network_pruning__21__0"
+  },
+  {
+    "id": "q28",
+    "type": "trend",
+    "question": "What is a potential future trend in network pruning research based on the focus of this work?",
+    "gold_answer": "A potential future trend in network pruning research could be the development of single-shot methods that utilize connection sensitivity for efficient model compression and acceleration.",
+    "gold_paper_ids": [
+      "lee2018_snip_singleshot_network_pruning"
+    ],
+    "_source_chunk": "lee2018_snip_singleshot_network_pruning__16__0"
+  },
+  {
+    "id": "q29",
+    "type": "definition",
+    "question": "What does the l1-norm of a filter represent in the context of pruning filters for efficient ConvNets?",
+    "gold_answer": "The l1-norm of a filter represents the sum of the absolute values of its weights (∑ |F i,j |), which also serves as an indicator of the average magnitude of its kernel weights and gives an expectation of the magnitude of the output feature map.",
+    "gold_paper_ids": [
+      "li2016_pruning_filters_for_efficient"
+    ],
+    "_source_chunk": "li2016_pruning_filters_for_efficient__5__0"
+  },
+  {
+    "id": "q30",
+    "type": "comparison",
+    "question": "How does pruning the convolutional layers of VGG-16 on CIFAR-10 affect the number of feature maps and FLOPs compared to the original model?",
+    "gold_answer": "Pruning the convolutional layers of VGG-16 on CIFAR-10 reduces the number of feature maps and decreases the FLOPs by at least 60%, as shown in Figure 2(b).",
+    "gold_paper_ids": [
+      "li2016_pruning_filters_for_efficient"
+    ],
+    "_source_chunk": "li2016_pruning_filters_for_efficient__10__0"
+  },
+  {
+    "id": "q31",
+    "type": "method",
+    "question": "How does the KSE method combine kernel sparsity and entropy to identify redundant convolutional filters?",
+    "gold_answer": "KSE (Li et al., 2019) measures two complementary properties per filter: kernel sparsity (proportion of near-zero weights) and kernel entropy (Shannon entropy of the filter's activation distribution across data). Filters with both high sparsity and low entropy are deemed redundant—they have few active weights and their outputs are uninformative. Combining both signals avoids pruning filters that are sparse yet still carry discriminative information, outperforming magnitude-only criteria.",
+    "gold_paper_ids": [
+      "li2018_exploiting_kernel_sparsity_and"
+    ],
+    "_source_chunk": "li2018_exploiting_kernel_sparsity_and__10__0"
+  },
+  {
+    "id": "q32",
+    "type": "trend",
+    "question": "What is the current trend in CNN compression research as indicated by the focus of this paper?",
+    "gold_answer": "The current trend in CNN compression research, as indicated by this paper, is to exploit kernel sparsity and entropy for achieving interpretable CNN compression.",
+    "gold_paper_ids": [
+      "li2018_exploiting_kernel_sparsity_and"
+    ],
+    "_source_chunk": "li2018_exploiting_kernel_sparsity_and__0__0"
+  },
+  {
+    "id": "q33",
+    "type": "definition",
+    "question": "Define HRank.",
+    "gold_answer": "HRank is a method for filter pruning using High-Rank Feature Map.",
+    "gold_paper_ids": [
+      "lin2020_hrank_filter_pruning_using"
+    ],
+    "_source_chunk": "lin2020_hrank_filter_pruning_using__12__0"
+  },
+  {
+    "id": "q34",
+    "type": "comparison",
+    "question": "How does filter pruning using high-rank feature map (HRank) compare to the method described in 'Compressing neural networks with the hashing trick' in terms of compression effectiveness?",
+    "gold_answer": "HRank uses high-rank feature maps to identify and remove filters that have minimal impact on the model's performance, whereas 'Compressing neural networks with the hashing trick' employs a hashing technique to map weights to a smaller set of values, leading to different approaches to achieving similar goals of reducing model size and computational cost.",
+    "gold_paper_ids": [
+      "lin2020_hrank_filter_pruning_using"
+    ],
+    "_source_chunk": "lin2020_hrank_filter_pruning_using__13__0"
+  },
+  {
+    "id": "q35",
+    "type": "method",
+    "question": "How does the Batch Normalization (BN) layer perform normalization on the internal activations?",
+    "gold_answer": "The BN layer normalizes the internal activations using mini-batch statistics. Specifically, it uses the mean (μ_B) and standard deviation (σ_B) values of the input activations over the current mini-batch B to perform the following transformation: z_out = γ * (z_in - μ_B) / σ_B + β, where γ and β are trainable affine transformation parameters that provide the possibility of linearly transforming the normalized values.",
+    "gold_paper_ids": [
+      "liu2017_learning_efficient_convolutional_networks"
+    ],
+    "_source_chunk": "liu2017_learning_efficient_convolutional_networks__4__2"
+  },
+  {
+    "id": "q36",
+    "type": "trend",
+    "question": "What is a current trend in the research of efficient convolutional networks, and what motivates this direction?",
+    "gold_answer": "A current trend in the research of efficient convolutional networks is the development of methods to reduce the computational complexity and resource requirements of these networks without significantly compromising their performance. This trend is motivated by the need to deploy deep learning models on devices with limited computational resources, such as mobile phones and embedded systems, where traditional large models are not feasible.",
+    "gold_paper_ids": [
+      "liu2017_learning_efficient_convolutional_networks"
+    ],
+    "_source_chunk": "liu2017_learning_efficient_convolutional_networks__14__1"
+  },
+  {
+    "id": "q37",
+    "type": "definition",
+    "question": "What is MetaPruning?",
+    "gold_answer": "MetaPruning is a meta learning approach for automatically pruning neural network channels under FLOPs constraint, which can achieve higher accuracy compared to uniform pruning baselines and traditional pruning methods.",
+    "gold_paper_ids": [
+      "liu2019_metapruning_meta_learning_for"
+    ],
+    "_source_chunk": "liu2019_metapruning_meta_learning_for__15__0"
+  },
+  {
+    "id": "q38",
+    "type": "comparison",
+    "question": "How does the PruningNet block in MetaPruning differ from the direct application of fully-connected layers in terms of the number of entries in the output vector after the first FC layer?",
+    "gold_answer": "The PruningNet block outputs a vector with 64 entries after the first FC layer, whereas a direct application of fully-connected layers would not be specified to output a specific number of entries like 64 in the passage.",
+    "gold_paper_ids": [
+      "liu2019_metapruning_meta_learning_for"
+    ],
+    "_source_chunk": "liu2019_metapruning_meta_learning_for__11__0"
+  },
+  {
+    "id": "q39",
+    "type": "method",
+    "question": "How does the training budget for the small pruned model differ from that of the large model?",
+    "gold_answer": "Naively training the small pruned model for the same number of epochs as the large model might be unfair, since the small pruned model requires significantly less training time.",
+    "gold_paper_ids": [
+      "liu2018_rethinking_the_value_of"
+    ],
+    "_source_chunk": "liu2018_rethinking_the_value_of__4__1"
+  },
+  {
+    "id": "q40",
+    "type": "trend",
+    "question": "What is a potential future direction for network pruning research based on the trends observed in the passage?",
+    "gold_answer": "A potential future direction for network pruning research could involve exploring more sophisticated pruning methods that not only focus on L1-norm based filter pruning or channel pruning but also consider other metrics such as activation effects, while maintaining or improving model accuracy without fine-tuning.",
+    "gold_paper_ids": [
+      "liu2018_rethinking_the_value_of"
+    ],
+    "_source_chunk": "liu2018_rethinking_the_value_of__6__0"
+  },
+  {
+    "id": "q41",
+    "type": "definition",
+    "question": "What is entropy-based pruning?",
+    "gold_answer": "Entropy-based pruning is a method used for compressing Convolutional Neural Networks (CNNs) by removing less important connections based on the entropy of their weights.",
+    "gold_paper_ids": [
+      "luo2017_an_entropybased_pruning_method"
+    ],
+    "_source_chunk": "luo2017_an_entropybased_pruning_method__15__0"
+  },
+  {
+    "id": "q42",
+    "type": "comparison",
+    "question": "How does the entropy-based pruning method differ from previous compression methods in terms of reducing the size of activations?",
+    "gold_answer": "The entropy-based pruning method reduces the size of activations, which is less concerned in previous compression methods.",
+    "gold_paper_ids": [
+      "luo2017_an_entropybased_pruning_method"
+    ],
+    "_source_chunk": "luo2017_an_entropybased_pruning_method__5__0"
+  },
+  {
+    "id": "q43",
+    "type": "method",
+    "question": "How does Han et al.'s iterative pruning method work to reduce redundancy in deep models?",
+    "gold_answer": "Han et al.'s iterative pruning method works by discarding small-weight connectivity below a threshold. This is achieved in practice by applying l1 or l2 regularization to encourage connectivity values to become smaller, thereby reducing the model's parameter count while attempting to maintain accuracy.",
+    "gold_paper_ids": [
+      "han2015_learning_both_weights_and"
+    ],
+    "_source_chunk": "luo2017_thinet_a_filter_level__3__0"
+  },
+  {
+    "id": "q44",
+    "type": "trend",
+    "question": "What is a key difference between ThiNet and existing filter pruning methods, and how does this approach contribute to model compression and performance?",
+    "gold_answer": "ThiNet differs from existing methods by pruning filters using statistics information computed from the next layer rather than the current layer. This approach contributes to model compression by allowing for more effective removal of less important filters while preserving higher accuracy, as demonstrated by the VGG-16 model being pruned to 5.05MB with promising generalization ability on transfer learning.",
+    "gold_paper_ids": [
+      "luo2017_thinet_a_filter_level"
+    ],
+    "_source_chunk": "luo2017_thinet_a_filter_level__2__3"
+  },
+  {
+    "id": "q45",
+    "type": "definition",
+    "question": "What is adaptive sparse connectivity?",
+    "gold_answer": "Adaptive sparse connectivity is a method inspired by network science that allows artificial neural networks to have variable and efficient connections between neurons, enabling scalable training.",
+    "gold_paper_ids": [
+      "mocanu2017_scalable_training_of_artificial"
+    ],
+    "_source_chunk": "mocanu2017_scalable_training_of_artificial__6__0"
+  },
+  {
+    "id": "q46",
+    "type": "comparison",
+    "question": "How does the adaptive sparse connectivity method differ from fully-connected layers in terms of connection management during training?",
+    "gold_answer": "In contrast to fully-connected layers where the number of connections is quadratic (n k n k-1), the adaptive sparse connectivity method dynamically adjusts the topology by removing the smallest positive and largest negative weights after each training epoch and then adding new random connections to maintain a constant number of connections throughout the training process.",
+    "gold_paper_ids": [
+      "mocanu2017_scalable_training_of_artificial"
+    ],
+    "_source_chunk": "mocanu2017_scalable_training_of_artificial__3__1"
+  },
+  {
+    "id": "q47",
+    "type": "method",
+    "question": "How does fine-tuning after pruning improve the performance of the pruned Convolutional Neural Network?",
+    "gold_answer": "Fine-tuning after pruning allows the network to adjust the weights of the remaining connections, which can lead to better performance by optimizing the pruned model further. This process helps in improving the top-5 validation accuracy from 83% to 87% for the network pruned to 11.5 GFLOPs and from 77.8% to 84.5% for the network pruned to 8.0 GFLOPs.",
+    "gold_paper_ids": [
+      "molchanov2016_pruning_convolutional_neural_networks"
+    ],
+    "_source_chunk": "molchanov2016_pruning_convolutional_neural_networks__13__1"
+  },
+  {
+    "id": "q48",
+    "type": "trend",
+    "question": "What trend or motivation is indicated by the passage regarding the method of pruning Convolutional Neural Networks?",
+    "gold_answer": "The passage indicates a trend towards pruning Convolutional Neural Networks based on the absolute difference in cost (or absolute changes in feature maps) rather than the net effect on loss, as this method provides higher accuracy and avoids the instability caused by large absolute changes.",
+    "gold_paper_ids": [
+      "molchanov2016_pruning_convolutional_neural_networks"
+    ],
+    "_source_chunk": "molchanov2016_pruning_convolutional_neural_networks__9__1"
+  },
+  {
+    "id": "q49",
+    "type": "definition",
+    "question": "What is pruning in the context of neural networks?",
+    "gold_answer": "Pruning in the context of neural networks refers to the process of removing some structural portion of the parameters after training, along with its associated computations, to derive a more compact network.",
+    "gold_paper_ids": [
+      "molchanov2019_importance_estimation_for_neural"
+    ],
+    "_source_chunk": "molchanov2019_importance_estimation_for_neural__2__0"
+  },
+  {
+    "id": "q50",
+    "type": "comparison",
+    "question": "How does Molchanov et al. (2019) estimate neuron importance for structured pruning using Taylor expansion?",
+    "gold_answer": "Molchanov et al. (2019) approximate the change in loss caused by removing a neuron using a first-order Taylor expansion of the loss function. The importance score is the product of the activation value and its gradient, averaged over the dataset. This avoids computing expensive second-order Hessian information while still capturing each neuron's actual contribution to the loss, enabling data-driven structured pruning of filters and layers.",
+    "gold_paper_ids": [
+      "molchanov2019_importance_estimation_for_neural"
+    ],
+    "_source_chunk": "molchanov2019_importance_estimation_for_neural__15__3"
+  },
+  {
+    "id": "q51",
+    "type": "method",
+    "question": "How does the rewinding technique work in the context of neural network pruning?",
+    "gold_answer": "In the context of neural network pruning, the rewinding technique involves reinitializing the pruned network's weights to match those of the unpruned model before training begins. This helps the pruned network to recover some of the performance lost due to pruning and improve its accuracy.",
+    "gold_paper_ids": [
+      "renda2020_comparing_rewinding_and_finetuning"
+    ],
+    "_source_chunk": "renda2020_comparing_rewinding_and_finetuning__22__4"
+  },
+  {
+    "id": "q52",
+    "type": "comparison",
+    "question": "What does Renda et al. (2020) find when comparing learning rate rewinding to weight rewinding in pruning?",
+    "gold_answer": "Renda et al. (2020) find that learning rate rewinding—resetting only the learning rate schedule to its initial value while keeping pruned weights at their current values—matches or outperforms weight rewinding (resetting weights to their initialization, as in the lottery ticket hypothesis) across multiple architectures and datasets. Fine-tuning with a fixed small learning rate consistently underperforms both. This suggests the key ingredient of effective post-pruning retraining is the aggressive learning rate schedule, not the specific initial weight values.",
+    "gold_paper_ids": [
+      "renda2020_comparing_rewinding_and_finetuning"
+    ],
+    "_source_chunk": "renda2020_comparing_rewinding_and_finetuning__5__0"
+  },
+  {
+    "id": "q53",
+    "type": "definition",
+    "question": "What is the lottery ticket hypothesis?",
+    "gold_answer": "The lottery ticket hypothesis is a concept suggesting that within a randomly initialized neural network, there exist subnetworks (or 'winning tickets') that, when trained in isolation, can match the performance of the original network after pruning.",
+    "gold_paper_ids": [
+      "frankle2018_the_lottery_ticket_hypothesis"
+    ],
+    "_source_chunk": "tanaka2020_pruning_neural_networks_without__13__1"
+  },
+  {
+    "id": "q54",
+    "type": "trend",
+    "question": "What trend does the comparison between pruning at initialisation and pruning after training reveal about the direction of sparsity research?",
+    "gold_answer": "Pruning before training incurs no reduction in the cost of training, while pruning after training involves no reduction in the cost of training either; however, pruning before training can lead to better test accuracy with less computational cost during the training phase compared to pruning after training.",
+    "gold_paper_ids": [
+      "tanaka2020_pruning_neural_networks_without"
+    ],
+    "_source_chunk": "tanaka2020_pruning_neural_networks_without__4__0"
+  },
+  {
+    "id": "q55",
+    "type": "trend",
+    "question": "What does the success of late resetting reveal about the research direction of lottery ticket hypothesis experiments?",
+    "gold_answer": "The late resetting technique improves the performance of the Lottery Ticket Hypothesis (LT) by resetting the weights of the winning tickets to their values at 5 epochs, which leads to a boost in performance across all settings as observed in the experiments.",
+    "gold_paper_ids": [
+      "wang2020_picking_winning_tickets_before"
+    ],
+    "_source_chunk": "wang2020_picking_winning_tickets_before__12__1"
+  },
+  {
+    "id": "q56",
+    "type": "trend",
+    "question": "What is a potential research trend based on the analysis of Neural Tangent Kernels (NTK) and how might it motivate future work in deep learning?",
+    "gold_answer": "A potential research trend is the exploration of using NTK to identify 'winning tickets' before full training, which could significantly reduce the computational resources required for training large neural networks. This motivation could drive future work towards developing more efficient algorithms for model pruning and initialization strategies that leverage NTK insights.",
+    "gold_paper_ids": [
+      "wang2020_picking_winning_tickets_before"
+    ],
+    "_source_chunk": "wang2020_picking_winning_tickets_before__6__0"
+  },
+  {
+    "id": "q57",
+    "type": "definition",
+    "question": "What is structured sparsity?",
+    "gold_answer": "Structured sparsity is a technique used in deep learning and regression analysis to enforce a specific structure on the sparsity pattern of the model parameters, which can lead to more interpretable models and computational efficiency.",
+    "gold_paper_ids": [
+      "wen2016_learning_structured_sparsity_in"
+    ],
+    "_source_chunk": "wen2016_learning_structured_sparsity_in__14__1"
+  },
+  {
+    "id": "q58",
+    "type": "comparison",
+    "question": "How does 2D-filter sparsity regularization compare to shape-wise sparsity in terms of reducing FLOP and improving accuracy on AlexNet?",
+    "gold_answer": "2D-filter sparsity regularization can reduce the total FLOP by 30%-40% without accuracy loss, while shape-wise sparsity achieves an average 1.4 × layer-wise speedup on both CPU and GPU without accuracy loss, and can reduce the top-1 error down to 41.83% if the parameters are retained.",
+    "gold_paper_ids": [
+      "wen2016_learning_structured_sparsity_in"
+    ],
+    "_source_chunk": "wen2016_learning_structured_sparsity_in__11__1"
+  },
+  {
+    "id": "q59",
+    "type": "method",
+    "question": "How does quantization of parameters to a reduced precision number representation help in model compression?",
+    "gold_answer": "Quantization of parameters to a reduced precision number representation helps in model compression by reducing the memory footprint of the model without significantly compromising its performance. This is particularly beneficial for neural networks trained with reduced precision arithmetic, where the memory overhead of sparse matrix storage becomes a larger proportion of the total memory usage.",
+    "gold_paper_ids": [
+      "zhu2017_to_prune_or_not"
+    ],
+    "_source_chunk": "zhu2017_to_prune_or_not__9__1"
+  },
+  {
+    "id": "q60",
+    "type": "comparison",
+    "question": "What does Zhu & Gupta (2017) conclude about large-sparse models vs. small-dense models of equal parameter count?",
+    "gold_answer": "Zhu & Gupta (2017) find that large-but-sparse models (wider/deeper architectures pruned to high sparsity) consistently outperform small-but-dense models with the same number of non-zero parameters. They also show that gradual magnitude pruning from a pretrained dense model outperforms training a sparse model from scratch at the same target sparsity, contradicting the intuition that a smaller dense model is equivalent to a pruned large model.",
+    "gold_paper_ids": [
+      "zhu2017_to_prune_or_not"
+    ],
+    "_source_chunk": "zhu2017_to_prune_or_not__13__4"
+  },
+  {
+    "id": "q61",
+    "type": "definition",
+    "question": "What is DepGraph?",
+    "gold_answer": "DepGraph is a research project focused on structural pruning.",
+    "gold_paper_ids": [
+      "fang2023_depgraph_towards_any_structural"
+    ],
+    "_source_chunk": "fang2023_depgraph_towards_any_structural__13__0"
+  },
+  {
+    "id": "q62",
+    "type": "comparison",
+    "question": "How does the pruning scheme differ between batch normalization layers and convolution layers?",
+    "gold_answer": "Batch normalization layers have the same pruning scheme for their inputs and outputs, denoted as sch(f-i) = sch(f+i), while convolution layers have distinct pruning schemes for their inputs and outputs, resulting in no dependency between the input and output of a convolution layer.",
+    "gold_paper_ids": [
+      "fang2023_depgraph_towards_any_structural"
+    ],
+    "_source_chunk": "fang2023_depgraph_towards_any_structural__5__3"
+  },
+  {
+    "id": "q63",
+    "type": "method",
+    "question": "How does dynamic token sparsification work in DynamicViT to improve efficiency?",
+    "gold_answer": "Dynamic token sparsification in DynamicViT involves selectively removing or 'sparsifying' tokens during the processing of visual data, which reduces computational load while maintaining performance. This technique dynamically adjusts the number of tokens based on their importance, allowing the model to focus on the most relevant features and thus improving efficiency without significant loss in accuracy.",
+    "gold_paper_ids": [
+      "rao2021_dynamicvit_efficient_vision_transformers"
+    ],
+    "_source_chunk": "rao2021_dynamicvit_efficient_vision_transformers__14__0"
+  },
+  {
+    "id": "q64",
+    "type": "trend",
+    "question": "What is a potential future direction for accelerating transformer-like models in computer vision tasks?",
+    "gold_answer": "A potential future direction for accelerating transformer-like models in computer vision tasks is to introduce sparsity by pruning tokens of less importance in the input instance, leveraging the flexibility of the self-attention module to handle variable-length token sequences.",
+    "gold_paper_ids": [
+      "rao2021_dynamicvit_efficient_vision_transformers"
+    ],
+    "_source_chunk": "rao2021_dynamicvit_efficient_vision_transformers__2__0"
+  },
+  {
+    "id": "q65",
+    "type": "definition",
+    "question": "What is network pruning?",
+    "gold_answer": "Network pruning is a model compression technique that involves removing unnecessary or less important parameters from a neural network to reduce its size and computational requirements, thereby improving efficiency for deployment on resource-constrained devices.",
+    "gold_paper_ids": [
+      "sui2021_chip_channel_independencebased_pruning"
+    ],
+    "_source_chunk": "sui2021_chip_channel_independencebased_pruning__2__0"
+  },
+  {
+    "id": "q66",
+    "type": "comparison",
+    "question": "How does the layer-wise pruning ratio differ between an overall sparsity of 42.8% and 71.8%?",
+    "gold_answer": "At overall sparsity 42.8%, the pruning ratios are mostly 0.15 or 0.4, while at 71.8%, the pruning ratios are higher, with more values at 0.5, 0.6, and 0.7, indicating a more aggressive pruning approach for higher sparsity.",
+    "gold_paper_ids": [
+      "sui2021_chip_channel_independencebased_pruning"
+    ],
+    "_source_chunk": "sui2021_chip_channel_independencebased_pruning__24__0"
+  },
+  {
+    "id": "q67",
+    "type": "method",
+    "question": "How are the query, key, and value vectors calculated in the multihead self-attention (MSA) module of a vision transformer?",
+    "gold_answer": "The query, key, and value vectors in the MSA module are calculated as follows: Q_h^l = Z_{l-1} W_h^{q_l}, K_h^l = Z_{l-1} W_h^{k_l}, and V_h^l = Z_{l-1} W_h^{v_l}, where Z_{l-1} is the input to the l-th layer, W_h^{q_l}, W_h^{k_l}, and W_h^{v_l} are the weight matrices for the query, key, and value of the h-th head, respectively.",
+    "gold_paper_ids": [
+      "tang2022_patch_slimming_for_efficient"
+    ],
+    "_source_chunk": "tang2022_patch_slimming_for_efficient__4__0"
+  },
+  {
+    "id": "q68",
+    "type": "trend",
+    "question": "What future direction does the research suggest for accelerating vision transformers?",
+    "gold_answer": "The research suggests combining patch slimming methods with other compression technologies such as weight pruning and model quantization to explore even more efficient vision transformers.",
+    "gold_paper_ids": [
+      "tang2022_patch_slimming_for_efficient"
+    ],
+    "_source_chunk": "tang2022_patch_slimming_for_efficient__14__0"
+  },
+  {
+    "id": "q69",
+    "type": "definition",
+    "question": "What is UVC?",
+    "gold_answer": "UVC stands for Unified Visual Transformer Compression, a method for compressing vision transformers while maintaining performance.",
+    "gold_paper_ids": [
+      "yu2022_unified_visual_transformer_compression"
+    ],
+    "_source_chunk": "yu2022_unified_visual_transformer_compression__8__1"
+  },
+  {
+    "id": "q70",
+    "type": "comparison",
+    "question": "How do DeiT and T2T-ViT differ in enhancing the training data efficiency of Vision Transformers?",
+    "gold_answer": "DeiT enhances training data efficiency by leveraging a teacher-student approach, while T2T-ViT improves it through better-crafted architectures.",
+    "gold_paper_ids": [
+      "yu2022_unified_visual_transformer_compression"
+    ],
+    "_source_chunk": "yu2022_unified_visual_transformer_compression__3__0"
+  },
+  {
+    "id": "q71",
+    "type": "method",
+    "question": "How does activation sparsity work in SparseViT to improve efficiency in high-resolution vision transformers?",
+    "gold_answer": "Activation sparsity in SparseViT works by selectively setting certain activations to zero during the forward pass of the network, which reduces the computational load without significantly affecting the model's performance. This technique helps in achieving higher efficiency by pruning less important activations, thus saving computation resources and improving speed without compromising accuracy.",
+    "gold_paper_ids": [
+      "chen2023_sparsevit_revisiting_activation_sparsity"
+    ],
+    "_source_chunk": "chen2023_sparsevit_revisiting_activation_sparsity__14__4"
+  },
+  {
+    "id": "q72",
+    "type": "trend",
+    "question": "What is a potential future trend in the optimization of vision transformers based on the modifications discussed in the passage?",
+    "gold_answer": "A potential future trend could be the adoption of window-wise execution for all operations in vision transformers to simplify the application of activation sparsity and improve efficiency.",
+    "gold_paper_ids": [
+      "chen2023_sparsevit_revisiting_activation_sparsity"
+    ],
+    "_source_chunk": "chen2023_sparsevit_revisiting_activation_sparsity__5__0"
+  },
+  {
+    "id": "q73",
+    "type": "definition",
+    "question": "What are self-attention heads?",
+    "gold_answer": "Self-attention heads are components in the DeiT-S model that focus on encoding different image features and visual receptive fields, with each head detecting different informative regions in the image.",
+    "gold_paper_ids": [
+      "kong2022_spvit_enabling_faster_vision"
+    ],
+    "_source_chunk": "kong2022_spvit_enabling_faster_vision__25__0"
+  },
+  {
+    "id": "q74",
+    "type": "comparison",
+    "question": "How does SPViT compare to other methods in terms of latency for DeiT-T on mobile phones and DeiT-S on an FPGA?",
+    "gold_answer": "SPViT demonstrates a real-time realization of DeiT-T on mobile phones with 26 ms latency on a Samsung Galaxy S20 and DeiT-S on a Xilinx FPGA with 13.2 ms latency on a Xilinx ZCU102, indicating better performance in reducing latency compared to other methods.",
+    "gold_paper_ids": [
+      "kong2022_spvit_enabling_faster_vision"
+    ],
+    "_source_chunk": "kong2022_spvit_enabling_faster_vision__1__4"
+  },
+  {
+    "id": "q75",
+    "type": "method",
+    "question": "How does the slow-fast token updating strategy work in Evo-ViT?",
+    "gold_answer": "In Evo-ViT, the slow-fast token updating strategy involves updating informative tokens through Multi-Head Self-Attention (MSA) and Feed-Forward Network (FFN) modules, while placeholder tokens are aggregated into a single representative token using an aggregating function like weighted sum. This approach allows for a more gradual update of placeholder tokens rather than abruptly discarding them, as seen in previous methods.",
+    "gold_paper_ids": [
+      "xu2022_evovit_slowfast_token_evolution"
+    ],
+    "_source_chunk": "xu2022_evovit_slowfast_token_evolution__7__0"
+  },
+  {
+    "id": "q76",
+    "type": "trend",
+    "question": "What is a potential future trend in the development of Vision Transformers (ViTs) regarding the CLS token and its interaction with patch tokens?",
+    "gold_answer": "A potential future trend could involve further optimizing the role and interaction of the CLS token with patch tokens to enhance the representation learning capabilities of ViTs, potentially leading to more efficient and effective models.",
+    "gold_paper_ids": [
+      "xu2022_evovit_slowfast_token_evolution"
+    ],
+    "_source_chunk": "xu2022_evovit_slowfast_token_evolution__4__1"
+  },
+  {
+    "id": "q77",
+    "type": "definition",
+    "question": "What is CHEX?",
+    "gold_answer": "CHEX is a novel channel exploration methodology proposed to reduce the computation cost of deep CNNs in both training and inference by dynamically adjusting channel importance and re-allocating the number of channels under a global sparsity constraint.",
+    "gold_paper_ids": [
+      "hou2022_chex_channel_exploration_for"
+    ],
+    "_source_chunk": "hou2022_chex_channel_exploration_for__17__0"
+  },
+  {
+    "id": "q78",
+    "type": "comparison",
+    "question": "How does the channel exploration method (Chex) compare to the channel pruning method based on the smaller-norm-less-informative assumption in terms of effectiveness for CNN model compression?",
+    "gold_answer": "The channel exploration method (Chex) is compared to the channel pruning method based on the smaller-norm-less-informative assumption, and Chex is found to be more effective as it challenges the traditional assumption and demonstrates better performance in CNN model compression.",
+    "gold_paper_ids": [
+      "hou2022_chex_channel_exploration_for"
+    ],
+    "_source_chunk": "hou2022_chex_channel_exploration_for__18__10"
+  },
+  {
+    "id": "q79",
+    "type": "method",
+    "question": "How does Group Fisher Pruning automatically determine the pruning ratio for each layer without requiring sensitivity analysis?",
+    "gold_answer": "Group Fisher Pruning automatically learns to prune the least important channels considering the current state of the network, thus eliminating the need for sensitivity analysis to decide the pruning ratio for each layer.",
+    "gold_paper_ids": [
+      "liu2021_group_fisher_pruning_for"
+    ],
+    "_source_chunk": "liu2021_group_fisher_pruning_for__13__0"
+  },
+  {
+    "id": "q80",
+    "type": "trend",
+    "question": "What is a potential future direction for improving the effectiveness of channel pruning methods like Group Fisher Pruning?",
+    "gold_answer": "A potential future direction could involve integrating more sophisticated importance estimation techniques that can handle complex network structures beyond simple sequential networks, such as residual connections or multi-path architectures.",
+    "gold_paper_ids": [
+      "liu2021_group_fisher_pruning_for"
+    ],
+    "_source_chunk": "liu2021_group_fisher_pruning_for__5__0"
+  },
+  {
+    "id": "q81",
+    "type": "definition",
+    "question": "Define pruning in the context of machine learning.",
+    "gold_answer": "Pruning in the context of machine learning refers to the process of removing less important parameters or connections from a model, such as a BERT-base model, to reduce its size and improve efficiency without significantly compromising performance.",
+    "gold_paper_ids": [
+      "zhang2022_platon_pruning_large_transformer"
+    ],
+    "_source_chunk": "zhang2022_platon_pruning_large_transformer__13__1"
+  },
+  {
+    "id": "q82",
+    "type": "comparison",
+    "question": "How does PLATON's performance compare to the baseline at different sparsity levels, particularly at 10% and 70% sparsity?",
+    "gold_answer": "At 10% sparsity, PLATON outperforms the baseline by 0.4% on MNLI-m, while at 70% sparsity, PLATON achieves a more than 3.0% gain in accuracy over the baseline.",
+    "gold_paper_ids": [
+      "zhang2022_platon_pruning_large_transformer"
+    ],
+    "_source_chunk": "zhang2022_platon_pruning_large_transformer__13__0"
+  },
+  {
+    "id": "q85",
+    "type": "definition",
+    "question": "What does Paul et al. (2022) find is actually encoded in a winning ticket's mask?",
+    "gold_answer": "Paul et al. (2022) find that a winning ticket's mask encodes information about the signs of final model weights rather than their magnitudes. They show that initializing a sparse network with the correct sign structure (even with random magnitudes) allows it to train to high accuracy, suggesting that the mask's primary role is to guide the optimization trajectory through sign information.",
+    "gold_paper_ids": [
+      "paul2022_unmasking_the_lottery_ticket"
+    ],
+    "_source_chunk": "paul2022_unmasking_the_lottery_ticket__6__1"
+  },
+  {
+    "id": "q86",
+    "type": "comparison",
+    "question": "How does IMP-LRR compare to fine tuning in terms of test error across different sparsities?",
+    "gold_answer": "IMP-LRR achieves a lower test error than fine tuning across sparsities.",
+    "gold_paper_ids": [
+      "paul2022_unmasking_the_lottery_ticket"
+    ],
+    "_source_chunk": "paul2022_unmasking_the_lottery_ticket__16__0"
+  },
+  {
+    "id": "q87",
+    "type": "definition",
+    "question": "What is unstructured pruning and how does it differ from structured pruning?",
+    "gold_answer": "Unstructured pruning removes individual connections between neurons of succeeding layers, keeping the global network architecture intact.",
+    "gold_paper_ids": [
+      "rachwan2022_winning_the_lottery_ahead"
+    ],
+    "_source_chunk": "rachwan2022_winning_the_lottery_ahead__2__0"
+  },
+  {
+    "id": "q88",
+    "type": "trend",
+    "question": "What does Rachwan et al. (2022) reveal about the research trend of when during training pruning should occur?",
+    "gold_answer": "Rachwan et al. (2022) monitor activation statistics—specifically the norms of layer activations—during the early epochs of training to detect network maturation: the point at which the pattern of active and inactive neurons stabilizes. They find that this maturation signal appears well before convergence. By pruning at maturation rather than at full training completion, their method produces winning tickets with significantly less total compute while preserving the accuracy benefits of the lottery ticket framework.",
+    "gold_paper_ids": [
+      "rachwan2022_winning_ahead"
+    ],
+    "_source_chunk": "rachwan2022_winning_the_lottery_ahead__4__0"
+  },
+  {
+    "id": "q89",
+    "type": "definition",
+    "question": "How does Kwon et al. (2022) achieve fast post-training pruning for transformers without fine-tuning?",
+    "gold_answer": "Kwon et al. (2022) propose a post-training pruning framework that uses a second-order approximation (block-wise Hessian) to estimate each weight's importance and then applies a closed-form optimal weight update to compensate for pruning error. Because the framework avoids iterative gradient-based fine-tuning, it runs significantly faster than training-based pruning methods while achieving competitive accuracy on BERT and other transformer models.",
+    "gold_paper_ids": [
+      "kwon2022_fast_post_training_pruning"
+    ],
+    "_source_chunk": "kwon2022_fast_post_training_pruning__17__6"
+  },
+  {
+    "id": "q90",
+    "type": "comparison",
+    "question": "How does the method of solving Eq. 27 using a numerical solver in CuPy compare to using the closed form solution (A^T A)^{-1} A^T B in terms of stability?",
+    "gold_answer": "The method using the numerical solver in CuPy provides higher stability compared to the closed form solution (A^T A)^{-1} A^T B.",
+    "gold_paper_ids": [
+      "kwon2022_fast_post_training_pruning"
+    ],
+    "_source_chunk": "kwon2022_fast_post_training_pruning__22__0"
+  },
+  {
+    "id": "q91",
+    "type": "method",
+    "question": "How does the OBS framework ensure efficient access to all row-wise inverse Hessians during the joint consideration step?",
+    "gold_answer": "The OBS framework ensures efficient access by leveraging the fact that the final compressed weights of each row only depend on the total number of parameters that were pruned in it, and the change in loss incurred by pruning some weight only depends on the previously pruned weights in the same row. This allows the order of pruning to be fixed within each row, avoiding the need to store all d row matrices of size d col × d col in GPU memory, thus reducing the risk of expensive memory transfers.",
+    "gold_paper_ids": [
+      "ding2022_optimal_brain_compression"
+    ],
+    "_source_chunk": "ding2022_optimal_brain_compression__6__3"
+  },
+  {
+    "id": "q92",
+    "type": "trend",
+    "question": "What is a potential future direction for research in layerwise compression based on the given passage?",
+    "gold_answer": "A potential future direction for research in layerwise compression could involve exploring non-linear layers beyond linear and convolutional layers, as most current works focus on these types of layers. Additionally, researchers might investigate alternative loss functions or constraints beyond the squared loss and generic compression constraint to improve performance.",
+    "gold_paper_ids": [
+      "ding2022_optimal_brain_compression"
+    ],
+    "_source_chunk": "ding2022_optimal_brain_compression__5__0"
+  },
+  {
+    "id": "q93",
+    "type": "definition",
+    "question": "What does SPDY propose to guarantee both accuracy and inference speedup in neural network pruning?",
+    "gold_answer": "SPDY (Frantar & Alistarh, 2022) formulates pruning as a mixed-integer optimization problem that simultaneously targets a user-specified inference speedup while minimizing accuracy loss. It uses a layer-wise second-order importance criterion to select weights and solves the speedup constraint directly, providing provable guarantees that the resulting sparse network meets the target FLOPs reduction. This avoids the trial-and-error of manually tuning sparsity ratios across layers.",
+    "gold_paper_ids": [
+      "frantar2022_spdy_accurate_pruning_with"
+    ],
+    "_source_chunk": "frantar2022_spdy_accurate_pruning_with__12__0"
+  },
+  {
+    "id": "q94",
+    "type": "comparison",
+    "question": "How does the accuracy of SPDY compare to the accuracy of the method used by Hubara et al. (2021a) after quantization-aware fine-tuning?",
+    "gold_answer": "SPDY achieves 75.00% top-1 accuracy after quantization-aware fine-tuning, compared to 74.33% for the method used by Hubara et al. (2021a).",
+    "gold_paper_ids": [
+      "frantar2022_spdy_accurate_pruning_with"
+    ],
+    "_source_chunk": "frantar2022_spdy_accurate_pruning_with__10__4"
+  },
+  {
+    "id": "q95",
+    "type": "trend",
+    "question": "What does research show about the relationship between neural network pruning and model generalization performance?",
+    "gold_answer": "Pruning involves removing neurons or connections in a neural network that have minimal impact on the model's performance. This process helps reduce the complexity of the model, which can lead to better generalization by reducing overfitting. By removing unnecessary components, the model becomes more focused on the most important features, thus improving its ability to generalize to unseen data.",
+    "gold_paper_ids": [
+      "zhang2022_prunings_effect_on_generalization"
+    ],
+    "_source_chunk": "zhang2022_prunings_effect_on_generalization__14__0"
+  },
+  {
+    "id": "q96",
+    "type": "trend",
+    "question": "What does Zhang et al. (2022) reveal about the research direction of understanding why pruning improves generalization?",
+    "gold_answer": "Zhang et al. (2022) disentangle two effects: (1) sparsity itself reducing model complexity, and (2) the optimization dynamics of retraining on the pruned architecture. They find that pruned models exhibit flatter loss landscapes (lower sharpness) after retraining compared to their dense counterparts, and this flatness—rather than sparsity per se—explains a significant portion of the generalization improvement. This suggests pruning acts partly as an implicit regularizer through the retraining process, not only by reducing parameter count.",
+    "gold_paper_ids": [
+      "zhang2022_prunings_effect_on_generalization"
+    ],
+    "_source_chunk": "zhang2022_prunings_effect_on_generalization__13__2"
+  },
+  {
+    "id": "q97",
+    "type": "definition",
+    "question": "What does OTO refer to in the context of this passage?",
+    "gold_answer": "OTO refers to Only Train Once, a one-shot neural network training and pruning framework.",
+    "gold_paper_ids": [
+      "chen2021_only_train_once"
+    ],
+    "_source_chunk": "chen2021_only_train_once__16__0"
+  },
+  {
+    "id": "q98",
+    "type": "comparison",
+    "question": "How does OTO's approach of training and compressing the model from scratch compare to fine-tuning after training?",
+    "gold_answer": "OTO trains and compresses the model from scratch without fine-tuning, achieving significant reduction in FLOPs and parameters, whereas traditional methods might require fine-tuning after initial training.",
+    "gold_paper_ids": [
+      "chen2021_only_train_once"
+    ],
+    "_source_chunk": "chen2021_only_train_once__4__0"
+  },
+  {
+    "id": "q99",
+    "type": "method",
+    "question": "How does the Optimal BERT Surgeon technique work to achieve scalable and accurate second-order pruning for large language models?",
+    "gold_answer": "The Optimal BERT Surgeon technique works by applying unstructured and block pruning to remove individual weights from pre-trained Transformer models, thereby producing compressed but accurate language models. This approach aims to reduce the computational overheads of large language models while maintaining their performance on various tasks.",
+    "gold_paper_ids": [
+      "kurtic2022_optimal_bert_surgeon"
+    ],
+    "_source_chunk": "kurtic2022_optimal_bert_surgeon__2__0"
+  },
+  {
+    "id": "q100",
+    "type": "trend",
+    "question": "What are the emerging trends in neural network pruning research for vision transformers, and what challenges remain to be addressed?",
+    "gold_answer": "Emerging trends in pruning vision transformers include token-level dynamic sparsification (e.g., DynamicViT, SPViT, Evo-ViT), which selectively removes less informative tokens at inference time to reduce FLOPs while preserving accuracy. Structured pruning frameworks such as DepGraph enable any-granularity structural pruning by modeling inter-layer dependencies. Statistical and second-order methods (e.g., PLATON, Optimal Brain Compression) are being extended from CNNs to large transformer models. Key remaining challenges include maintaining accuracy under high sparsity ratios, developing hardware-friendly sparse formats for transformers, and designing pruning criteria that generalize across diverse vision tasks without task-specific tuning.",
+    "gold_paper_ids": [
+      "rao2021_dynamicvit_efficient_vision_transformers",
+      "kong2022_spvit_enabling_faster_vision",
+      "xu2022_evovit_slowfast_token_evolution",
+      "fang2023_depgraph_towards_any_structural",
+      "zhang2022_platon_pruning_large_transformer"
+    ],
+    "_source_chunk": "rao2021_dynamicvit__0__0"
+  },
+  {
+    "id": "q97b",
+    "type": "trend",
+    "question": "What does Li et al. (2022) suggest about the future direction of importance-score design in structured pruning research?",
+    "gold_answer": "Li et al. (2022) show that random channel pruning, which ignores importance scores entirely, achieves competitive accuracy after retraining. This challenges the research trend of designing increasingly sophisticated saliency criteria, suggesting that effort should shift toward understanding the retraining phase rather than the pruning criterion itself. The finding implies that importance scores have diminishing returns once a good retraining schedule is used.",
+    "gold_paper_ids": [
+      "li2022_revisiting_random_channel_pruning"
+    ],
+    "_source_chunk": "li2022_revisiting_random_channel_pruning__0__0"
+  },
+  {
+    "id": "q97c",
+    "type": "comparison",
+    "question": "How does SPViT's soft token pruning differ from DynamicViT's hard token removal in vision transformers?",
+    "gold_answer": "DynamicViT uses a binary mask to completely remove tokens deemed unimportant at specific layers, discarding their information permanently. SPViT instead employs soft token pruning: unimportant tokens are fused into a single 'informative' representative token rather than dropped, preserving aggregated information while reducing the sequence length. SPViT's approach is more latency-aware, optimizing token reduction specifically to target hardware latency rather than FLOPs.",
+    "gold_paper_ids": [
+      "kong2022_spvit_enabling_faster_vision",
+      "rao2021_dynamicvit_efficient_vision_transformers"
+    ],
+    "_source_chunk": "kong2022_spvit_enabling_faster_vision__0__0"
+  },
+  {
+    "id": "q97d",
+    "type": "method",
+    "question": "How does DepGraph construct dependency graphs to enable any-granularity structural pruning?",
+    "gold_answer": "DepGraph (Fang et al., 2023) builds a dependency graph where each node represents a layer and directed edges capture inter-layer parameter dependencies (e.g., a pruned output channel in one layer must correspond to a pruned input channel in the next). The graph is constructed automatically by tracing the computational graph of the model. Pruning a group of coupled parameters is then formulated as a graph partitioning problem, allowing DepGraph to handle arbitrary architectures—including residual connections and grouped convolutions—without manual dependency specification.",
+    "gold_paper_ids": [
+      "fang2023_depgraph_towards_any_structural"
+    ],
+    "_source_chunk": "fang2023_depgraph_towards_any_structural__0__0"
+  },
+  {
+    "id": "q97e",
+    "type": "trend",
+    "question": "What statistical insight motivates PLATON's use of the upper confidence bound for estimating weight importance in transformer pruning?",
+    "gold_answer": "PLATON (Zhang et al., 2022) observes that importance scores estimated from a single mini-batch are noisy, causing high-variance rankings that lead to unstable pruning decisions. Inspired by the exploration-exploitation trade-off in bandit algorithms, PLATON models each weight's importance as a random variable and uses its upper confidence bound (mean + uncertainty term) as the pruning criterion. Weights with high uncertainty are protected from pruning, preventing the premature removal of parameters that may be important but have been rarely or noisily observed during training.",
+    "gold_paper_ids": [
+      "zhang2022_platon_pruning_large_transformer"
+    ],
+    "_source_chunk": "zhang2022_platon_pruning_large_transformer__0__0"
+  }
+]

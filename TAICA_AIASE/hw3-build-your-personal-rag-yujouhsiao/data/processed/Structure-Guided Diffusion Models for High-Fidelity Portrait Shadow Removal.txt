@@ -1,0 +1,1010 @@
+Structure-Guided Diffusion Models for High-Fidelity Portrait Shadow Removal
+Wanchang Yu1
+Qing Zhang1,2*
+Rongjia Zheng1
+Wei-Shi Zheng1,2
+1School of Computer Science and Engineering, Sun Yat-sen University, China
+2Key Laboratory of Machine Intelligence and Advanced Computing, Ministry of Education, China
+Input
+ShdowDiffusion [11]
+IC-light [49]
+BSR [26]
+Ours
+GT
+Figure 1. Comparison on portrait shadow removal. Our method allows to robustly remove facial cast shadows while faithfully preserving
+the portrait identities as well as structure details in shadow regions and also ensuring the overall naturalness.
+Abstract
+We present a diffusion-based portrait shadow removal ap-
+proach that can robustly produce high-fidelity results. Un-
+like previous methods, we cast shadow removal as diffusion-
+based inpainting.
+To this end, we first train a shadow-
+independent structure extraction network on a real-world
+portrait dataset with various synthetic lighting conditions,
+which allows to generate a shadow-independent struc-
+ture map including facial details while excluding the un-
+wanted shadow boundaries. The structure map is then used
+as condition to train a structure-guided inpainting diffu-
+sion model for removing shadows in a generative man-
+ner.
+Finally, to restore the fine-scale details (e.g., eye-
+lashes, moles and spots) that may not be captured by the
+structure map, we take the gradients inside the shadow
+regions as guidance and train a detail restoration diffu-
+sion model to refine the shadow removal result.
+Exten-
+sive experiments on the benchmark datasets show that our
+method clearly outperforms existing methods, and is ef-
+fective to avoid previously common issues such as facial
+identity tampering, shadow residual, color distortion, struc-
+ture blurring, and loss of details.
+Our code is avail-
+∗Corresponding author (zhangq93@mail.sysu.edu.cn).
+able at https://github.com/wanchang-yu/Structure-Guided-
+Diffusion-for-Portrait-Shadow-Removal.
+1. Introduction
+Taking selfies is very popular nowadays due to the readily-
+available cameras on various devices, particularly the mo-
+bile phones.
+However, portrait photos taken in the wild
+lacking professional lighting conditions often suffer from
+undesired foreign shadows cast by external objects (see Fig-
+ure 1 for examples). The presence of facial shadows not
+only severely degrade the overall visual appeal of the por-
+traits, but also adversely affect many downstream vision
+tasks, such as face detection and recognition [4, 5, 39, 52],
+and portrait image editing [20, 45]. Hence, portrait shadow
+removal techniques are widely required.
+Currently, portrait shadow removal remains a challenge
+despite the remarkable progress in natural image shadow
+removal.
+The reason behind is twofold.
+First of all,
+due to factors such as privacy and difficulty in data col-
+lection, large-scale paired data for portrait shadow is ex-
+tremely scarce, which significantly limits the development
+of portrait shadow removal methods, especially learning-
+based solutions. On the other hand, as this task is portrait-
+arXiv:2507.04692v2  [cs.CV]  14 Jul 2025
+
+oriented, it has very low tolerance for visual artifacts, even
+minor imperfections on facial color and details could make
+the final result unnatural and unacceptable. Note, although
+existing software allow users to interactively adjust photos,
+it is still rather tedious and difficult for non-experts to man-
+ually produce high-fidelity portrait shadow removal results.
+Existing shadow removal methods [11, 25, 43] mainly
+target natural images due to the availability of large-scale
+paired datasets. However, these methods basically fail to
+deal with portrait shadows, as shown in Figures 5 and 6. As
+there is no accessible large-scale paired datasets for portrait
+shadow removal, current methods in this field focus primar-
+ily on constructing synthetic paired data to enable super-
+vised learning of shadow removal [26, 31, 49, 53]. Suffer-
+ing from the domain gap between real-world portraits and
+synthetic data, these methods typically do not work well
+for real-world portraits with complex shadows. To avoid
+the domain gap issue led by synthetic training data, a zero-
+shot solution is introduced in [14], which proposed to lever-
+age the generative prior from pre-trained StyleGAN2 [23] to
+recover shadow-free portrait through test-time GAN inver-
+sion. However, this method tends to modify face identity
+and incur unnatural results. Note, although recent image
+relighting techniques [8, 16, 41, 47] have shown remark-
+able progress, they struggle to enable high-fidelity portrait
+shadow removal due to the inherent difficulty in estimating
+ambient light and facial geometry from a single image.
+To robustly produce high-fidelity portrait shadow re-
+moval results, we in this work present a diffusion-based
+approach. Particularly, we propose to cast portrait shadow
+removal as diffusion-based inpainting, so as to take full
+advantage of the strong generation capability of diffusion
+models. To this end, we first train a shadow-independent
+structure extraction network (SE-Net) on a dataset of paired
+real-world portraits with various synthetic lighting condi-
+tions, from which we obtain a structure map containing fa-
+cial details while excluding the shadow boundaries. With
+the structure map, we then train a structure-guided inpaint-
+ing diffusion model by enforcing reconstruction of ran-
+domly masked shadow-free portraits.
+Finally, to restore
+the fine-scale facial details that may not be captured by the
+structure map, we further refine the shadow removal result
+by a detail restoration diffusion model under the guidance
+of the gradients in the original shadow regions. Note, al-
+though our method requires a test shadow mask as input,
+it is highly robust to inaccurate masks, requiring only that
+the mask covers the shadow regions, even if it includes non-
+shadow regions. The major contributions of this work are:
+• We present a simple yet effective unsupervised approach
+that addresses portrait shadow removal from a perspective
+of diffusion-based inpainting.
+• We introduce a relighting-based data synthesis strategy
+for constructing the training data, and develop a shadow-
+independent structure extraction network.
+• We show that our method outperforms state-of-the-art
+methods for portrait shadow removal.
+2. Related Work
+Shadow removal. Early methods typically rely on various
+handcrafted priors or assumptions to work [7, 9, 12]. Recent
+methods are basically deep learning based [3, 10, 11, 17,
+21, 22, 24, 27, 29, 56, 57], benefiting mostly from the avail-
+ability of large-scale paired datasets such as ISTD [40] and
+SRD [33]. However, as these methods are tailored for natu-
+ral images, they are not so effective in dealing with portraits.
+In contrast to natural images, portrait shadow removal has
+received much less research attention, due to the lack of
+large-scale paired datasets. To overcome the data scarcity
+issue, some methods [26, 53] proposed to synthesize paired
+shadow and shadow-free portrait images for training. As
+their data synthesis strategies involve only simple adjust-
+ments on brightness and saturation, without considering fa-
+cial geometry and albedo, their methods typically do not
+work well for real-world portraits. He et al. [14] achieved
+zero-shot portrait shadow removal by utilizing generative
+prior from StyleGAN2, but this method may result in unde-
+sired modifications to facial details and thus fails to preserve
+the face identity. More recently, image relighting is also
+used for shadow removal [8, 16, 41, 47, 49].However, this
+method tends to induce unnatural results because it is very
+challenging to obtain accurate prediction of diffuse lighting
+and albedo from a single portrait image.
+Image inpainting. Before the era of deep learning, patch-
+based self-similarity of natural images has long been the
+foundation for image inpainting [2, 42]. The emergence of
+deep learning has then led to great progress in image in-
+painting [18, 32, 38, 48], as it is quite easy to construct
+paired training data. Recently, diffusion model has been
+a preferable choice for image inpainting [1, 19, 30, 35, 44,
+55], due to its impressive generation capability. Note, naive
+applying diffusion models to portrait shadow removal fail
+to produce visually natural results with unchanged portrait
+identity. A recent work closely related to our method also
+shows that it is feasible to remove shadows via image in-
+painting [25]. However, it does not work well for portrait
+shadow removal (see Figures 5 and 6), even we fine-tuned
+their model on real-world paired shadow and shadow-free
+portrait images provided in [53].
+3. Our Method
+Given a portrait image with cast shadows, our method aims
+to remove the facial shadows while faithfully preserving the
+facial details in the shadow regions. Figure 2 presents the
+overall inference pipeline of our method.
+
+Input
+Shadow mask
+Masked input
+Structure map
+C
+Final output
+C
+Coarse output
+Noise
+Thresholding
+Difference image
+Noise
+Inpainting diffusion
+SE-Net
+Detail restoration 
+diffusion
+Refined mask
+_
+Gradient map
+Figure 2. Inference pipeline of our method. Given a input portrait image and the corresponding shadow mask, we first feed the input
+image to the shadow-independent structure extraction network (SE-Net) to get a structure map. Then, we perform shadow removal by
+inpainting the shadow regions with a diffusion model conditioned on the structure map. Finally, the shadow removal output is refined by a
+detail restoration diffusion model to restore the fine-scale facial details that may not captured by the strcutre map.
+Well-lit input
+PDG
+Structure GT
+Predicted
+structure
+Synthetic image
+Relighted input
+SE-Net
+ࣦ௧௢௧௔௟
+Figure 3. Training pipeline of SE-Net. Note, we adopt a trained
+PDG model for structure extraction from [46], while it is not in-
+variant to illumination changes.
+3.1. Shadow-Independent Structure Extraction
+As shown in Figure 2, the key to obtaining high-quality
+portrait shadow removal through inpainting is to acquire
+a structure map free of shadow boundaries for guiding
+the inpainting process. However, although existing struc-
+ture/edge extraction methods are quite effective in identify-
+ing edges and structures, they are sensitive to illumination
+discontinuities and will inevitably include shadow bound-
+aries in their results (see Figure 7). Therefore, we propose
+to build a shadow-independent structure extraction network.
+Training data synthesis. To enable effective training of the
+shadow-independent structure extraction network, as shown
+in Figure 3, we construct a synthetic paired dataset of well-
+lit real-world portraits without foreign shadows on faces and
+the corresponding relighted portraits with various illumina-
+tion discontinuities, based on the shadow-free portraits in
+the CelebA dataset [28]. Specifically, for a well-lit portrait
+I, we first apply an off-the-shelf physics-based relighting
+method [54] over it to get a relighted image Irelit, which
+is then combined with the original portrait I to produce a
+synthetic image Isyn with illumination discontinuities by
+Isyn = M ⊙Irelit + (1 −M) ⊙I,
+(1)
+where M is a random facial mask, and ⊙denotes element-
+wise multiplication. Note, our synthetic data is only used
+for training the SE-Net and the subsequent detail resotration
+diffusion model, rather than for directly training shadow re-
+moval model as done in [53].
+Training losses. As shown in Figure 3, we adopt a trained
+structure extraction model from [46] (referred to as PDG
+in paper) to produce structure map for the original well-lit
+portrait, which is treated as pseudo ground-truth for super-
+vising the training of our SE-Net. By respectively denoting
+our SE-Net and the PDG model as Gs and Gp, the training
+losses of our SE-Net are defined as:
+(
+Lrec = ∥Gs(Isyn) −Gp(I)∥1,
+Lperceptual = LLP IP S(Gs(Isyn), Gp(I)),
+(2)
+where LLP IP S refers to the learned perceptual image patch
+similarity [51].
+Besides, we also utilize a discriminator
+to determine whether the output of SE-Net belongs to the
+structure image domain, and further define an adversarial
+loss LGAN (see supplementary material for details).
+In
+summary, the overall loss function for training the SE-Net
+is given by:
+Ltotal = Lrec + λ1Lperceptual + λ2LGAN,
+(3)
+where we empirically set λ1 = 0.5, λ1 = 0.25, which pro-
+duce good results, as demonstrated in Figure 7.
+
+Initial output
+Synthetic image
+C
+Noise
+Final output
+Masked image & Mask
+C
+Noise
+Structure
+Masked image
+Input
+Output
+Noise
+C
+Random mask
+Inpainting
+diffusion
+SE-Net
+SE-Net
+Detail restoration 
+diffusion
+Structure-guided Portrait Inpainting
+Gradient-guided Detail Restoration
+Inpainting
+diffusion
+Mask
+Gradient
+Figure 4. Training pipeline of our diffusion models. Here we introduce how our structure-guided portrait inpainting diffusion model and
+gradient-guided detail restoration diffusion model are trained.
+3.2. Structure-Guided Portrait Inpainting
+As shown in Figure 2, with structure map, the next step is
+to inpaint the shadow regions. To this end, we develop a
+structure-guided portrait inpainting diffusion model.
+Structure-aware denoising.
+As shown in Figure 4, we
+start with a shadow-free portrait as input and then randomly
+mask some facial regions to create a masked input, followed
+by a diffusion model to reconstruct the original input by in-
+painting the masked regions. The inpainting is rooted in the
+forward diffusion process, where the diffusion model learns
+a Markovian chain by progressively corrupting the target
+image x0 (namely the masked input) with Gaussian noise at
+each timestep t, such that it is transformed into a Gaussian
+distribution (referred to as N in the following). Specifically,
+after reparameterization [15], our forward process obtains
+xt from x0 in a single step by:
+xt = √¯αtx0 +
+√
+1 −¯αtϵ,
+(4)
+where ¯αt = Qt
+i=0 αi is the cumulative product of forward
+noise weight parameters αi = 1 −βi, while ϵ ∼N(0, I)
+denotes random Gaussian noise.
+As for the reverse denoising process, we use the sam-
+pling strategy of DDIM [37] for acceleration. Note, unlike
+unconditional image generation, our goal is to faithfully re-
+construct the original unmasked portrait, the reverse denois-
+ing process is thus conditioned on a structure map S and
+defined as:
+xt−1 = √¯αt−1
+xt −√1 −¯αt · et
+√¯αt
+
++
+p
+1 −¯αt−1 · et,
+(5)
+where et = ϵθ(xt, IM, S, M, t) refers to the noise estimated
+by a deep neural network ϵθ, where IM is the masked in-
+put created from a random mask M. Following [15], the
+training objective for diffusion model can be simplified as:
+Ldiff(ϵ) = ∥ϵ −ϵθ(xt, IM, S, M, t)∥2
+2,
+(6)
+where ϵ is the ground truth noise, while ϵθ(xt, IM, S, M, t)
+is the noise predicted by the network. As shown in Fig-
+ure 2, a facial shadow mask is required at the inference
+stage, which is a dilated version of the facial shadow de-
+tection result from the trained model of [6].
+Shadow mask refinement. To enhance the robustness of
+our method to inaccurate shadow mask, we propose to re-
+fine the mask based on the shadow removal result gener-
+ated by the inpainting diffusion model.
+Specifically, we
+first compute the absolute difference between the input im-
+age and the shadow removal result, and then perform Otsu-
+based thresholding to get a refined shadow mask excluding
+all the non-shadow regions. With the refined mask, we fur-
+ther update the shadow removal result by combining it with
+the input image, so as to ensure that non-shadow regions in
+the result are unchanged.
+3.3. Gradient-Guided Detail Restoration
+As the original PDG model is designed for generating por-
+trait drawing formed by large-scale structures, thus our SE-
+Net is similarly not so effective in capturing fine-scale por-
+trait details, such as eyelashes, moles, and spots (see the
+bottom row in Figure 7 for example). To address this issue,
+we design a detail restoration diffusion model to refine the
+shadow removal result generated by the inpainting diffusion
+model, where we directly take the gradients in the shadow
+regions as guidance to restore the fine-scale details. Fig-
+ure 4 describes how we train the detail restoration diffusion
+model. Note, gradient-aware denoising process is similar
+to the structure-aware denoising described above, and the
+two share the same forward diffusion and reverse denoising
+formulations described in Equations 4 and 5, with the latter
+conditioned on gradient map rather than structure map.
+
+Input
+UPSR
+BSR
+Inpaint4Shadow
+HomoFormer
+IC-light
+Ours
+GT
+Figure 5. Visual comparison with state-of-the-art methods on test images from the dataset provided in [53].
+Method
+All
+Shadow region
+Non-shadow region
+SSIM↑
+LPIPS↓
+RMSE↓
+SSIM↑
+LPIPS↓
+RMSE↓
+SSIM↑
+LPIPS↓
+RMSE↓
+ShadowDiffusion [11]
+0.650
+0.177
+38.246
+0.901
+0.037
+15.561
+0.579
+0.223
+52.276
+Inpaint4Shadow [25]
+0.766
+0.094
+22.709
+0.910
+0.033
+17.250
+0.708
+0.164
+45.456
+ShadowFormer [10]
+0.772
+0.086
+21.413
+0.926
+0.027
+15.288
+0.723
+0.149
+42.341
+HomoFormer [43]
+0.786
+0.100
+21.724
+0.913
+0.041
+16.248
+0.711
+0.167
+42.950
+PSM [53]
+0.782
+0.074
+-
+-
+-
+-
+-
+-
+-
+UPSR [14]
+0.731
+0.109
+26.915
+0.900
+0.039
+20.659
+0.668
+0.188
+45.391
+BSR [26]
+0.605
+0.118
+28.532
+0.910
+0.036
+15.193
+0.548
+0.171
+43.627
+IC-light [49]
+0.514
+0.278
+62.539
+0.916
+0.057
+33.061
+0.478
+0.319
+69.208
+Ours w/o structure guidance
+0.757
+0.101
+23.598
+0.898
+0.043
+18.514
+0.714
+0.138
+39.000
+Ours w/ PDG predicted structure
+0.779
+0.092
+19.963
+0.919
+0.035
+14.062
+0.725
+0.131
+37.387
+Ours w/ data synthesis in PSM
+0.785
+0.086
+19.797
+0.925
+0.032
+13.752
+0.729
+0.136
+38.485
+Ours w/o detail-restoration
+0.814
+0.062
+18.537
+0.943
+0.020
+12.748
+0.747
+0.120
+36.326
+Ours (full method)
+0.830
+0.056
+17.162
+0.973
+0.011
+10.198
+0.778
+0.091
+34.573
+Table 1. Quantitative comparison on the real-world portrait shadow removal dataset provided in [53].
+3.4. Implementation and Training Details
+Network architecture. The SE-Net is an encoder-decoder
+network, which starts with a flat convolution and two down
+convolution blocks, followed by nine residual blocks, and
+finally two up convolution blocks and a final convolution
+layer. Please see also the supplementary material for vi-
+sual illustration of the architecture of SE-Net. As for the in-
+painting diffusion model and the detail-restoration diffusion
+model, we follow [15] to adopt the same U-Net architecture.
+Training details. To train SE-Net, we synthesize 20,000
+portrait images with diverse lighting conditions based on
+the CelebA dataset [28], and train it for 3 epochs with a
+batch size of 8 and a learning rate of 1.5 × 10−5. As for the
+inpainting diffusion model, we train it on the FFHQ dataset
+for 300 epochs with a batch size of 32, and train the detail
+restoration diffusion model on the same synthetic dataset as
+the SE-Net for 200 epochs. We build our model on PyTorch
+and use the Adam optimizer with momentum parameters of
+(0.9, 0.999) and an initial learning rate of 1 × 10−4. Fol-
+lowing [36], we employ the Kaiming initialization [13] to
+initialize the weights of our model and apply 0.9999 Expo-
+
+Input
+UPSR
+BSR
+Inpaint4Shadow
+HomoFormer
+IC-light
+ShadowDiffusion
+Ours
+Figure 6. Visual comparison with state-of-the-art methods on test images from our collected dataset.
+nential Moving Average (EMA) in all our experiments. We
+use 2000 diffusion steps and a noise schedule βt linearly in-
+creasing from 1 × 10−6 to 1 × 10−2 for training. During
+inference, we perform both the inpainting diffusion and de-
+tail restoration diffusion for 40 denoising steps, resulting in
+a total of 80 steps, which takes about 2.5 seconds to process
+a 512 × 512 image on an NVIDIA RTX 4090 GPU.
+4. Experiments
+Datasets. Following previous portrait shadow removal ap-
+proaches [14, 26], we evaluate our method on the only
+publicly available real-world paired dataset provided in
+PSM [53], which contains 9 subjects and 100 shadowed por-
+trait images in varying poses, shadow shapes, illumination
+conditions, and shadow types. To better examine the effec-
+tiveness of our method, we additionally construct a dataset
+of 200 portraits with diverse facial shadows. Note, we only
+conduct visual comparison on our collected dataset due to
+the lack of ground truth shadow removal results.
+Evaluation metrics. We use three commonly-used metrics
+to quantitatively evaluate the performance of our method,
+including SSIM, LPIPS, and the root mean square error
+(RMSE) computed in the LAB color space for measuring
+the similarity between the predicted results and the corre-
+sponding ground-truth shadow-free images.
+4.1. Comparison with State-of-the-art Methods
+Baselines.
+We compare our method with various state-
+of-the-art shadow removal methods, including four por-
+trait shadow removal and editing methods, i.e., PSM [53],
+UPSR [14], and BSR [26], IC-light [49], as well as four
+natural image shadow removal methods, i.e., ShadowDiffu-
+sion [11], Inpaint4Shadow [25], ShadowFormer [10], and
+HomoFormer [43]. For fair comparison, we produce their
+results using publicly-available implementation or trained
+models provided by the authors with recommended param-
+eter setting. Note that, we do not compare with other recent
+relighting-based shadow editing methods [8, 16, 41, 47], as
+their codes and trained models are not yet released.
+Visual comparison. We in Figures 5 and 6 conduct visual
+comparison between our method and previous shadow re-
+moval methods. As shown, shadow removal methods de-
+signed for natural images, i.e., Inpaint4Shadow [25], Ho-
+moFormer [43], and ShadowDiffusion [11] are not well-
+suited to portraits and tend to induce obvious shadow resid-
+uals and appearance distortions. As for the other three por-
+trait shadow removal methods, UPSR [14] and BSR [26]
+fail to preserve the facial details and may also lead to
+shadow residuals and color distortions, while IC-Light [49]
+struggles to remove the facial shadows due to the inherent
+difficulty in estimating the ambient light and facial geom-
+etry. Please see also the supplementary material for more
+visual comparison results.
+Quantitative comparison. In Table 1, we quantitatively
+compare our method with other methods in terms of the
+SSIM, LPIPS, and RMSE metrics. As can be seen, our
+method outperforms all the compared methods on all the
+three metrics, demonstrating its effectiveness and superior-
+
+Figure 7. Visual comparison of structure maps extracted by different methods and the corresponding shadow removal results.
+(a) Input. (b)-(d) are structure maps generated by PDG [46], SE-Net trained on data synthesized by the method of PSM [53], and SE-Net
+trained on our synthesized data. (e)-(g) are shadow removal results produced by our method using the structure maps in (b)-(d), respectively.
+ity in portrait shadow removal. Note, as PSM [53] provides
+only code for synthesizing training data, without releasing
+the training code and trained model, its quantitative results
+in Table 1 are as reported in their paper.
+4.2. Ablation Study
+Effectiveness of our shadow-independent structure ex-
+traction. Although the trained model of PDG [46] is uti-
+lized to train our structure extraction, the structure map
+produced by PDG [46] is not what we expected because
+it will include the shadow boundaries and lead to unnatu-
+ral shadow removal results, as shown in Figure 7 (b)&(e).
+By training on our synthesized data with diverse lighting
+conditions, our structure extraction network (SE-Net) can
+robustly extract shadow-independent structures, enabling
+high-quality shadow removal results.
+Effectiveness of our data synthesis strategy.
+To ver-
+ify the effectiveness of our data synthesis, we alternatively
+adopt the portrait shadow synthesis strategy introduced in
+PSM [53] to create data on FFHQ for training our SE-Net.
+As shown in Figure 7 (c)&(f) and Table 1, training on the
+data synthesized by the strategy in PSM fails to exclude the
+unwanted shadow boundaries and will degrade the subse-
+quent shadow removal performance, because the strategy
+only involves simple modifications to brightness, satura-
+tion, and subsurface scattering of face, lacking the ability to
+physically simulate the complex facial lighting conditions.
+Effect of structure map on shadow inpainting. We in
+Figure 8 examine how structure map derived from the SE-
+Net affects the performance of our diffusion-based shadow
+inpainting. As shown, omitting the structure map, the fa-
+cial structure details behind shadows are inevitably modi-
+fied, producing unpredictable portrait inconsistent to the in-
+put. In comparison, adopting the structure map as guidance
+helps generate results with facial structure faithful to the in-
+Input
+w/o structure
+w/ structure
+GT
+Figure 8. Effect of structure map on shadow inpainting.
+put, validating the necessity of the structure map.
+Effect of detail restoration. We in Figure 9 analyze the
+impact of our detail restoration.
+As shown, without the
+restoration step, our shadow removal results exhibit notice-
+able blurring artifacts around the eyebrows (see 1st row),
+and fail to faithfully recover the mole in shadow region (see
+2nd row). By including the restoration step, we are able to
+produce high-fidelity shadow removal results with all afore-
+mentioned fine-scale details effectively restored, manifest-
+ing the effectiveness of our detail restoration.
+4.3. More Analysis
+Robustness to inaccurate shadow masks. Thanks to the
+design of performing portrait shadow removal via structure-
+guided inpainting, our method is highly robust to inaccurate
+input shadow masks, requiring only that the masks cover
+the shadow regions even if they include additional large-
+scale non-shadow regions. As demonstrated in Figure 10,
+our method produces visually indistinguishable shadow re-
+moval results from the three masks, although the last two in
+the 3rd and 4th columns are inaccurate masks.
+Different diffusion models for shadow inpainting.
+To
+
+Input
+w/o detail restoration
+w/ detail restoration
+Figure 9. Effect of our detail restoration.
+Figure 10. Effect of inaccurate shadow masks. Our method is
+highly robust to inaccurate masks (see 3rd and 4th columns).
+Input
+SD + ControlNet
+Ours
+GT
+Figure 11. Effect of leveraging different diffusion models for
+shadow inpainting. Note, the same structure map as ours is used
+to produce the shadow inpainting result of “SD + ControlNet”, and
+our result here is free of detail restoration.
+Input
+UPSR
+BSR
+Ours
+Figure 12. Failure case. Our method may produce unnatural re-
+sult for complex self-attached shadows (see the eyelid area).
+Method
+UPSR
+BSR
+ShadowDiffusion
+IC-light
+Ours
+Param.
+135M
+72M
+108.79M
+-
+185.12M
+Time
+192s
+11s
+2.3s
+32s
+9.5s
+Table 2. Comparison on the number of parameters (param.)
+and inference time. Note, all the inference times here are test for
+a 512 × 512 portrait on an NVIDIA A100 Tensor Core GPU.
+test how different diffusion models affect the performance
+of our method, we replace our inpainting diffusion model
+with a strong pre-trained Stable Diffusion (SD) model (ver-
+sion v1-5 inpainting model) released by [34]. To ensure
+fair comparison, the compared SD model is fine-tuned on
+our training dataset and injected with the same structure
+map from SE-Net using ControlNet [50]. As can be seen in
+Figure 11, our trained inpainting diffusion model produces
+high-fidelity shadow removal results faithful to the inputs,
+while the SD model incurs noticeable structure tampering.
+Effect of our method on natural images. Our method is
+also applicable to natural images by replacing the portrait-
+oriented PDG model [46] with a generic edge detection
+model and also changing the training dataset.
+We show
+in the supplementary material that our method can produce
+competitive shadow removal results for natural images.
+Analysis on computational complexity. Table 2 compares
+our inference time with those of other existing portrait spe-
+cialized or diffusion-based shadow removal methods. As
+shown, our inference time is more efficient than that of most
+other methods. Moreover, the number of parameters of our
+method are comparable to other methods, showing that our
+superior performance comes mainly from method design.
+Limitations.
+As our method treats shadow removal as
+diffusion-based inpainting, it gains strong robustness to dif-
+ferent types of shadows, especially dark hard shadows that
+previous methods struggle to handle. However, due to the
+lack of explicit geometry and physical constraints, it may
+fail to ensure the overall naturalness when complex self-
+attached shadows are involved, as shown in Figure 12.
+5. Conclusion
+We have presented a portrait shadow removal approach
+that allows to robustly produce high-fidelity results. Un-
+like previous methods, we cast portrait shadow removal as
+diffusion-based inpainting. To do so, we develop a structure
+extraction network that is robust to illumination changes to
+estimate shadow-independent structure map for a given por-
+trait image. The structure map is then fed to an inpainting
+diffusion model to guide the generation of the shadow-free
+output. Next, we refine the shadow-free output with a de-
+tail restoration diffusion model for impairing the fine-scale
+facial details that may not captured by the structure map.
+
+Extensive experiments show that our method outperforms
+state-of-the-art methods for portrait shadow removal.
+Acknowledgement.This work was supported by the Na-
+tional Natural Science Foundation of China (62471499), the
+Guangdong Basic and Applied Basic Research Foundation
+(2023A1515030002).
+References
+[1] Ciprian Corneanu, Raghudeep Gadde, and Aleix M Mar-
+tinez.
+Latentpaint: Image inpainting in latent space with
+diffusion models. In WACV, pages 4334–4343, 2024. 2
+[2] Antonio Criminisi, Patrick P´erez, and Kentaro Toyama. Re-
+gion filling and object removal by exemplar-based image in-
+painting. IEEE Transactions on Image Processing, 13(9):
+1200–1212, 2004. 2
+[3] Xiaodong Cun, Chi-Man Pun, and Cheng Shi.
+Towards
+ghost-free shadow removal via dual hierarchical aggregation
+network and shadow matting gan. In AAAI, pages 10680–
+10687, 2020. 2
+[4] Xingbo Dong, Sangrae Cho, Youngsam Kim, Soohyung
+Kim, and Andrew Beng Jin Teoh. Deep rank hashing net-
+work for cancellable face identification. Pattern Recognition,
+131:108886, 2022. 1
+[5] Pawel Drozdowski, Christian Rathgeb, and Christoph Busch.
+The watchlist imbalance effect in biometric face identifica-
+tion: Comparing theoretical estimates and empiric measure-
+ments. In ICCV, pages 3757–3765, 2021. 1
+[6] Xianyong Fang, Xiaohao He, Linbo Wang, and Jianbing
+Shen.
+Robust shadow detection by exploring effective
+shadow contexts. In ACM MM, pages 2927–2935, 2021. 4
+[7] Graham D Finlayson, Mark S Drew, and Cheng Lu. Entropy
+minimization for shadow removal. International Journal of
+Computer Vision, 85(1):35–57, 2009. 2
+[8] David Futschik, Kelvin Ritland, James Vecore, Sean Fanello,
+Sergio Orts-Escolano, Brian Curless, Daniel S`ykora, and Ro-
+hit Pandey.
+Controllable light diffusion for portraits.
+In
+CVPR, pages 8412–8421, 2023. 2, 6
+[9] Maciej Gryka, Michael Terry, and Gabriel J Brostow. Learn-
+ing to remove soft shadows. ACM Transactions on Graphics
+(TOG), 34(5):1–15, 2015. 2
+[10] Lanqing Guo, Siyu Huang, Ding Liu, Hao Cheng, and Bihan
+Wen. Shadowformer: Global context helps shadow removal.
+In AAAI, pages 710–718, 2023. 2, 5, 6
+[11] Lanqing Guo, Chong Wang, Wenhan Yang, Siyu Huang,
+Yufei Wang, Hanspeter Pfister, and Bihan Wen. Shadowd-
+iffusion: When degradation prior meets diffusion model for
+shadow removal. In CVPR, pages 14049–14058, 2023. 1, 2,
+5, 6
+[12] Ruiqi Guo, Qieyun Dai, and Derek Hoiem. Paired regions for
+shadow detection and removal. IEEE Transactions on Pat-
+tern Analysis and Machine Intelligence, 35(12):2956–2967,
+2012. 2
+[13] Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun.
+Delving deep into rectifiers: Surpassing human-level perfor-
+mance on imagenet classification.
+In ICCV, pages 1026–
+1034, 2015. 5
+[14] Yingqing He, Yazhou Xing, Tianjia Zhang, and Qifeng
+Chen. Unsupervised portrait shadow removal via generative
+priors. In ACM MM, pages 236–244, 2021. 2, 5, 6
+[15] Jonathan Ho, Ajay Jain, and Pieter Abbeel. Denoising diffu-
+sion probabilistic models. NeurIPS, 33:6840–6851, 2020. 4,
+
+[16] Andrew Hou, Zhixin Shu, Xuaner Zhang, He Zhang, Yan-
+nick Hold-Geoffroy, Jae Shin Yoon, and Xiaoming Liu.
+Compose:
+Comprehensive portrait shadow editing.
+In
+ECCV, pages 356–373. Springer, 2024. 2, 6
+[17] Xiaowei Hu, Yitong Jiang, Chi-Wing Fu, and Pheng-Ann
+Heng. Mask-shadowgan: Learning to remove shadows from
+unpaired data. In ICCV, pages 2472–2481, 2019. 2
+[18] Satoshi Iizuka, Edgar Simo-Serra, and Hiroshi Ishikawa.
+Globally and locally consistent image completion.
+ACM
+Transactions on Graphics (ToG), 36(4):1–14, 2017. 2
+[19] Liya Ji, Zhefan Rao, Sinno Jialin Pan, Chenyang Lei, and
+Qifeng Chen. A diffusion model with state estimation for
+degradation-blind inverse imaging. In AAAI, pages 2471–
+2479, 2024. 2
+[20] Yuming Jiang, Ziqi Huang, Xingang Pan, Chen Change Loy,
+and Ziwei Liu. Talk-to-edit: Fine-grained facial editing via
+dialog. In ICCV, pages 13799–13808, 2021. 1
+[21] Yeying Jin, Aashish Sharma, and Robby T Tan.
+Dc-
+shadownet:
+Single-image hard and soft shadow removal
+using unsupervised domain-classifier guided network.
+In
+ICCV, pages 5027–5036, 2021. 2
+[22] Yeying Jin, Wei Ye, Wenhan Yang, Yuan Yuan, and Robby T
+Tan. Des3: Adaptive attention-driven self and soft shadow
+removal using vit similarity.
+In AAAI, pages 2634–2642,
+2024. 2
+[23] Tero Karras, Samuli Laine, Miika Aittala, Janne Hellsten,
+Jaakko Lehtinen, and Timo Aila. Analyzing and improving
+the image quality of stylegan. In CVPR, pages 8110–8119,
+2020. 2
+[24] Hieu Le and Dimitris Samaras. Shadow removal via shadow
+image decomposition. In ICCV, pages 8578–8587, 2019. 2
+[25] Xiaoguang Li, Qing Guo, Rabab Abdelfattah, Di Lin, Wei
+Feng, Ivor Tsang, and Song Wang. Leveraging inpainting
+for single-image shadow removal. In ICCV, pages 13055–
+13064, 2023. 2, 5, 6
+[26] Yaojie Liu, Andrew Z Hou, Xinyu Huang, Liu Ren, and Xi-
+aoming Liu. Blind removal of facial foreign shadows. In
+BMVC, page 88, 2022. 1, 2, 5, 6
+[27] Yuhao Liu, Zhanghan Ke, Ke Xu, Fang Liu, Zhenwei Wang,
+and Rynson WH Lau. Recasting regional lighting for shadow
+removal. In AAAI, pages 3810–3818, 2024. 2
+[28] Ziwei Liu, Ping Luo, Xiaogang Wang, and Xiaoou Tang.
+Deep learning face attributes in the wild. In ICCV, pages
+3730–3738, 2015. 3, 5
+[29] Zhihao Liu, Hui Yin, Xinyi Wu, Zhenyao Wu, Yang Mi, and
+Song Wang. From shadow generation to shadow removal. In
+CVPR, pages 4927–4936, 2021. 2
+[30] Andreas Lugmayr, Martin Danelljan, Andres Romero, Fisher
+Yu, Radu Timofte, and Luc Van Gool. Repaint: Inpainting
+using denoising diffusion probabilistic models.
+In CVPR,
+pages 11461–11471, 2022. 2
+
+[31] Junfeng Lyu, Zhibo Wang, and Feng Xu. Portrait eyeglasses
+and shadow removal by leveraging 3d synthetic data.
+In
+CVPR, pages 3429–3439, 2022. 2
+[32] Deepak Pathak, Philipp Krahenbuhl, Jeff Donahue, Trevor
+Darrell, and Alexei A Efros.
+Context encoders: Feature
+learning by inpainting. In CVPR, pages 2536–2544, 2016.
+
+[33] Liangqiong Qu, Jiandong Tian, Shengfeng He, Yandong
+Tang, and Rynson WH Lau. Deshadownet: A multi-context
+embedding deep network for shadow removal.
+In CVPR,
+pages 4067–4075, 2017. 2
+[34] Robin Rombach, Andreas Blattmann, Dominik Lorenz,
+Patrick Esser, and Bj¨orn Ommer. High-resolution image syn-
+thesis with latent diffusion models. In CVPR, pages 10684–
+10695, 2022. 8
+[35] Chitwan Saharia, William Chan, Huiwen Chang, Chris Lee,
+Jonathan Ho, Tim Salimans, David Fleet, and Mohammad
+Norouzi.
+Palette: Image-to-image diffusion models.
+In
+ACM SIGGRAPH 2022 conference proceedings, pages 1–10,
+2022. 2
+[36] Chitwan Saharia, Jonathan Ho, William Chan, Tim Sal-
+imans, David J Fleet, and Mohammad Norouzi.
+Image
+super-resolution via iterative refinement. IEEE Transactions
+on Pattern Analysis and Machine Intelligence, 45(4):4713–
+4726, 2022. 5
+[37] Jiaming
+Song,
+Chenlin
+Meng,
+and
+Stefano
+Ermon.
+Denoising diffusion implicit models.
+arXiv preprint
+arXiv:2010.02502, 2020. 4
+[38] Roman Suvorov, Elizaveta Logacheva, Anton Mashikhin,
+Anastasia Remizova, Arsenii Ashukha, Aleksei Silvestrov,
+Naejin Kong, Harshith Goka, Kiwoong Park, and Victor
+Lempitsky.
+Resolution-robust large mask inpainting with
+fourier convolutions. In WACV, pages 2149–2159, 2022. 2
+[39] Chengrui Wang and Weihong Deng. Representative forgery
+mining for fake face detection.
+In CVPR, pages 14923–
+14932, 2021. 1
+[40] Jifeng Wang, Xiang Li, and Jian Yang. Stacked conditional
+generative adversarial networks for jointly learning shadow
+detection and shadow removal. In CVPR, pages 1788–1797,
+2018. 2
+[41] Joshua Weir, Junhong Zhao, Andrew Chalmers, and Taehyun
+Rhee. Deep portrait delighting. In ECCV, pages 423–439.
+Springer, 2022. 2, 6
+[42] Yonatan Wexler, Eli Shechtman, and Michal Irani. Space-
+time completion of video.
+IEEE Transactions on Pattern
+Analysis and Machine Intelligence, 29(3):463–476, 2007. 2
+[43] Jie Xiao, Xueyang Fu, Yurui Zhu, Dong Li, Jie Huang, Kai
+Zhu, and Zheng-Jun Zha. Homoformer: Homogenized trans-
+former for image shadow removal. In CVPR, pages 25617–
+25626, 2024. 2, 5, 6
+[44] Shaoan Xie, Zhifei Zhang, Zhe Lin, Tobias Hinz, and Kun
+Zhang. Smartbrush: Text and shape guided object inpainting
+with diffusion model. In CVPR, pages 22428–22437, 2023.
+
+[45] Yanbo Xu, Yueqin Yin, Liming Jiang, Qianyi Wu, Chengyao
+Zheng, Chen Change Loy, Bo Dai, and Wayne Wu. Transed-
+itor: Transformer-based dual-space gan for highly control-
+lable facial editing. In CVPR, pages 7683–7692, 2022. 1
+[46] Ran Yi, Yong-Jin Liu, Yu-Kun Lai, and Paul L Rosin.
+Unpaired portrait drawing generation via asymmetric cycle
+mapping. In CVPR, pages 8217–8225, 2020. 3, 7, 8
+[47] Jae Shin Yoon, Zhixin Shu, Mengwei Ren, Cecilia Zhang,
+Yannick Hold-Geoffroy, Krishna Kumar Singh, and He
+Zhang. Generative portrait shadow removal. ACM Trans-
+actions on Graphics (TOG), 43(6):1–13, 2024. 2, 6
+[48] Jiahui Yu, Zhe Lin, Jimei Yang, Xiaohui Shen, Xin Lu, and
+Thomas S Huang. Generative image inpainting with contex-
+tual attention. In CVPR, pages 5505–5514, 2018. 2
+[49] Lvmin Zhang, Anyi Rao, and Maneesh Agrawala. Scaling
+in-the-wild training for diffusion-based illumination harmo-
+nization and editing by imposing consistent light transport.
+In ICLR. 1, 2, 5, 6
+[50] Lvmin Zhang, Anyi Rao, and Maneesh Agrawala. Adding
+conditional control to text-to-image diffusion models.
+In
+ICCV, pages 3836–3847, 2023. 8
+[51] Richard Zhang, Phillip Isola, Alexei A Efros, Eli Shechtman,
+and Oliver Wang. The unreasonable effectiveness of deep
+features as a perceptual metric. In CVPR, pages 586–595,
+2018. 3
+[52] Shifeng Zhang, Cheng Chi, Zhen Lei, and Stan Z Li. Re-
+fineface: Refinement neural network for high performance
+face detection. IEEE Transactions on Pattern Analysis and
+Machine Intelligence, 43(11):4008–4020, 2020. 1
+[53] Xuaner Zhang, Jonathan T Barron, Yun-Ta Tsai, Rohit
+Pandey, Xiuming Zhang, Ren Ng, and David E Jacobs. Por-
+trait shadow manipulation. ACM Transactions on Graphics
+(TOG), 39(4):78–1, 2020. 2, 3, 5, 6, 7
+[54] Hao Zhou, Sunil Hadap, Kalyan Sunkavalli, and David W Ja-
+cobs. Deep single-image portrait relighting. In ICCV, pages
+7194–7202, 2019. 3
+[55] Shipeng Zhu, Pengfei Fang, Chenjie Zhu, Zuoyan Zhao,
+Qiang Xu, and Hui Xue. Text image inpainting via global
+structure-guided diffusion models.
+In AAAI, pages 7775–
+7783, 2024. 2
+[56] Yurui Zhu, Jie Huang, Xueyang Fu, Feng Zhao, Qibin Sun,
+and Zheng-Jun Zha. Bijective mapping network for shadow
+removal. In CVPR, pages 5627–5636, 2022. 2
+[57] Yurui Zhu, Zeyu Xiao, Yanchi Fang, Xueyang Fu, Zhiwei
+Xiong, and Zheng-Jun Zha. Efficient model-driven network
+for shadow removal. In AAAI, pages 3635–3643, 2022. 2

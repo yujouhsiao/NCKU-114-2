@@ -1,0 +1,5 @@
+# text2sql skill dependencies
+# 目前只使用 Python 標準庫 (sqlite3, json, re, sys, os)
+# 可按需新增：
+# radon==6.0.1  # for code metrics (if needed)
+# sqlparse==0.4.4  # for SQL parsing (optional)

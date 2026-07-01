@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Env / secrets
+.env
+!.env.example
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# Large model weights / checkpoints
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+checkpoints_efficientnet-b3/
+
+# Large data / cache
+NLP/final_project/data/pdfs/
+NLP/final_project/data/chroma/
+NLP/final_project/pruning_pdfs.zip
+NLP/assignment-2/pubmed_cache.csv
+NLP/assignment-1/train/
+NLP/assignment-1/test/
+TAICA_AIASE/hw3-build-your-personal-rag-yujouhsiao/data/raw/
+
+# Node / misc
+node_modules/
+
+# Local run artifacts (from TAICA_AIASE subprojects)
+dev_run_results/
+verify_report.json
+aiase_result.json
+aiase_result.json.tmp
+.pi-memory.json
+memory.json
+.hermes/

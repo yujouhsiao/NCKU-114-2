@@ -1,0 +1,85 @@
+# Shadow Removal Paper Index
+ 
+This document lists all papers in this knowledge base with their publication year and venue.
+ 
+## Paper List
+ 
+| # | Title | Year | Venue |
+|---|-------|------|-------|
+| 1 | Auto-Exposure Fusion for Single-Image Shadow Removal | 2021 | CVPR |
+| 2 | Boundary-Aware Divide and Conquer: A Diffusion-based Solution for Unsupervised Shadow Removal | 2023 | ICCV |
+| 3 | DenseSR: Image Shadow Removal as Dense Prediction | 2025 | ACM MM |
+| 4 | DeS3: Adaptive Attention-driven Self and Soft Shadow Removal using ViT Similarity | 2024 | AAAI |
+| 5 | Detail-Preserving Latent Diffusion for Stable Shadow Removal | 2025 | CVPR |
+| 6 | Diff-Shadow: Global-guided Diffusion Model for Shadow Removal | 2025 | AAAI |
+| 7 | DynRouteNet: Lightweight Facial Shadow Removal with Mask-Guided Dynamic Routing | 2025 | IEEE TIP |
+| 8 | Efficient Model-Driven Network for Shadow Removal | 2022 | AAAI |
+| 9 | HomoFormer: Homogenized Transformer for Image Shadow Removal | 2024 | CVPR |
+| 10 | Latent Feature-Guided Diffusion Models for Shadow Removal | 2024 | WACV |
+| 11 | Leveraging Inpainting for Single-Image Shadow Removal | 2023 | ICCV |
+| 12 | NTIRE 2024 Image Shadow Removal Challenge Report | 2024 | CVPRW (NTIRE) |
+| 13 | NTIRE 2025 Image Shadow Removal Challenge Report | 2025 | CVPRW (NTIRE) |
+| 14 | OmniSR: Shadow Removal Under Direct and Indirect Lighting | 2025 | AAAI |
+| 15 | PhaSR: Generalized Image Shadow Removal with Physically Aligned Priors | 2026 | CVPR |
+| 16 | Polarization Guided Mask-Free Shadow Removal | 2025 | AAAI |
+| 17 | Shadow Removal by a Lightness-Guided Network With Training on Unpaired Data | 2021 | IEEE TIP |
+| 18 | ShadowDiffusion: When Degradation Prior Meets Diffusion Model for Shadow Removal | 2023 | CVPR |
+| 19 | ShadowFormer: Global Context Helps Shadow Removal | 2023 | AAAI |
+| 20 | ShadowRefiner: Towards Mask-free Shadow Removal via Fast Fourier Transformer | 2024 | CVPRW (NTIRE) |
+| 21 | Single-Image Shadow Removal Using Deep Learning: A Comprehensive Survey | 2024 | arXiv |
+| 22 | SoftShadow: Leveraging Soft Masks for Penumbra-Aware Shadow Removal | 2025 | CVPR |
+| 23 | SpA-Former: An Effective and Lightweight Transformer for Image Shadow Removal | 2023 | IJCNN (Oral) |
+| 24 | Structure-Guided Diffusion Models for High-Fidelity Portrait Shadow Removal | 2025 | ICCV |
+| 25 | WSRD: A Novel Benchmark for High Resolution Image Shadow Removal | 2023 | CVPRW (NTIRE) |
+ 
+## Venue Statistics
+ 
+| Venue | Count |
+|-------|-------|
+| CVPR | 4 (#1, #5, #15, #18) |
+| AAAI | 6 (#4, #6, #8, #14, #16, #19) |
+| ICCV | 3 (#2, #11, #24) |
+| CVPRW (NTIRE) | 4 (#12, #13, #20, #25) |
+| IEEE TIP | 2 (#7, #17) |
+| ACM MM | 1 (#3) |
+| WACV | 1 (#10) |
+| IJCNN | 1 (#23) |
+| arXiv | 1 (#21) |
+ 
+## Year Distribution
+ 
+| Year | Count |
+|------|-------|
+| 2021 | 2 |
+| 2022 | 1 |
+| 2023 | 6 |
+| 2024 | 5 |
+| 2025 | 9 |
+| 2026 | 1 |
+ 
+## Method Category Overview
+ 
+| Category | Papers |
+|----------|--------|
+| Diffusion-based | #2, #5, #6, #10, #18, #24 |
+| Transformer-based | #9, #19, #20, #23 |
+| GAN / Unpaired | #2, #17 |
+| Physics / Polarization | #16 |
+| Lightweight / Efficient | #7, #8, #23 |
+| Facial Shadow | #7, #24 |
+| Challenge Reports / Benchmarks | #12, #13, #25 |
+| Survey | #21 |
+ 
+## Venue Legend
+ 
+| Abbreviation | Full Name |
+|---|---|
+| CVPR | IEEE/CVF Conference on Computer Vision and Pattern Recognition |
+| ICCV | IEEE/CVF International Conference on Computer Vision |
+| AAAI | AAAI Conference on Artificial Intelligence |
+| WACV | IEEE Winter Conference on Applications of Computer Vision |
+| ACM MM | ACM International Conference on Multimedia |
+| CVPRW | CVPR Workshop (NTIRE: New Trends in Image Restoration and Enhancement) |
+| IEEE TIP | IEEE Transactions on Image Processing |
+| IJCNN | International Joint Conference on Neural Networks |
+| arXiv | arXiv preprint (not yet peer-reviewed) |

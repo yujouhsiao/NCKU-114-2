@@ -1,0 +1,9 @@
+{
+  "citation_accuracy": 1.0,
+  "faithfulness": 0.86,
+  "answer_relevancy": 0.892,
+  "n_faith": 100,
+  "n_relev": 100,
+  "n_questions": 100,
+  "mode": "no_rag"
+}
